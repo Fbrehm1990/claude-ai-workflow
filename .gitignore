@@ -1,0 +1,15 @@
+# Runtime state written by dashboard/progress.py
+tasks/status.json
+tasks/status.lock
+tasks/status.tmp
+__pycache__/
+
+# Personal data: stays on this machine (created from the *.example.md files on first start)
+tasks/inbox.md
+tasks/done.md
+tasks/recurring.md
+logs/*
+!logs/.gitkeep
+outputs/**/*
+!outputs/*/
+!outputs/*/.gitkeep

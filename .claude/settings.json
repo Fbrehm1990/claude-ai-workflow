@@ -1,0 +1,38 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch",
+      "Read(~/ENGINEERING/**)",
+      "Edit(~/ENGINEERING/**)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(npm:*)",
+      "Bash(npx:*)",
+      "Bash(node:*)",
+      "Bash(python:*)",
+      "Bash(pip:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(mkdir:*)",
+      "PowerShell(git *)",
+      "PowerShell(npm *)",
+      "PowerShell(python *)",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Get-Content *)"
+    ],
+    "deny": [
+      "Bash(git push --force:*)",
+      "Bash(git push -f:*)",
+      "Bash(git push origin main:*)",
+      "Bash(git push origin master:*)",
+      "Bash(gh pr merge:*)",
+      "Bash(gh repo delete:*)",
+      "Bash(rm -rf:*)",
+      "PowerShell(git push --force*)",
+      "PowerShell(git push -f*)",
+      "PowerShell(Remove-Item *)",
+      "Edit(~/ENGINEERING/ai-workflow/.claude/settings.json)"
+    ]
+  }
+}

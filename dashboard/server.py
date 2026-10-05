@@ -1,0 +1,296 @@
+"""Local dashboard for the AI Workflow. Run: python dashboard/server.py  (opens http://127.0.0.1:8765)
+
+Stdlib only. Binds to 127.0.0.1 and rejects foreign Host headers and cross-site writes.
+"""
+import json
+import os
+import re
+import sys
+import webbrowser
+from datetime import datetime
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+from urllib.parse import parse_qs, urlparse
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import feed  # noqa: E402
+
+PORT = int(os.environ.get("AIWF_PORT", "8765"))
+ROOT = Path(__file__).resolve().parent.parent
+HERE = Path(__file__).resolve().parent
+INBOX = ROOT / "tasks" / "inbox.md"
+DONE = ROOT / "tasks" / "done.md"
+RECURRING = ROOT / "tasks" / "recurring.md"
+STATUS = ROOT / "tasks" / "status.json"
+READABLE = [ROOT / "outputs", ROOT / "logs", ROOT / "tasks"]
+OPENABLE_EXT = {".md", ".txt", ".csv", ".docx", ".xlsx", ".pptx", ".pdf", ".html", ".png", ".jpg", ".jpeg", ".patch", ".json"}
+TYPES = ["research", "code", "brief", "docs"]
+PRIORITIES = ["high", "normal", "low"]
+
+# Mirrors the schedules in the Claude app (sidebar → Scheduled). Edit here if you change them there.
+SCHEDULES = [
+    {"id": "ai-morning-brief", "name": "Morning brief", "days": [0, 1, 2, 3, 4], "times": ["07:06"]},
+    {"id": "ai-queue-worker", "name": "Queue worker", "days": [0, 1, 2, 3, 4, 5, 6], "times": ["09:00", "12:00", "15:00"]},
+    {"id": "ai-evening-digest", "name": "Evening digest", "days": [0, 1, 2, 3, 4, 5, 6], "times": ["18:06"]},
+]
+
+TASK_RE = re.compile(r"^- \[( |~)\]\s*(?:\[(\w+)\])?\s*(?:\((high|normal|low)\))?\s*(.*)$")
+DONE_RE = re.compile(r"^- \[(x|!)\]\s*(\d{4}-\d\d-\d\d)?\s*(\d\d:\d\d)?\s*(?:\[(\w+)\])?\s*(.*)$")
+
+
+def read(p: Path) -> str:
+    return p.read_text(encoding="utf-8") if p.exists() else ""
+
+
+def write(p: Path, text: str) -> None:
+    p.write_text(text, encoding="utf-8", newline="\n")
+
+
+def queue_bounds(lines):
+    """Index of the first line after '## Queue' (tasks live below it)."""
+    for i, ln in enumerate(lines):
+        if ln.strip().lower() == "## queue":
+            return i + 1
+    return len(lines)
+
+
+def parse_inbox():
+    lines = read(INBOX).splitlines()
+    tasks, cur = [], None
+    for i in range(queue_bounds(lines), len(lines)):
+        ln = lines[i]
+        m = TASK_RE.match(ln)
+        if m:
+            state, typ, prio, text = m.groups()
+            title, _, details = text.partition(" — ")
+            cur = {"line": i, "raw": ln, "state": "running" if state == "~" else "queued",
+                   "type": (typ or "other").lower(), "priority": prio or "normal",
+                   "title": title.strip(), "details": details.strip()}
+            tasks.append(cur)
+        elif cur and ln.startswith((" ", "\t")) and ln.strip():
+            cur["details"] = (cur["details"] + "\n" + ln.strip()).strip()
+        else:
+            cur = None
+    return tasks
+
+
+def parse_done():
+    items = []
+    for ln in read(DONE).splitlines():
+        m = DONE_RE.match(ln)
+        if not m:
+            continue
+        mark, date, time, typ, rest = m.groups()
+        title, _, out = rest.partition("→")
+        blocked = mark == "!" or "BLOCKED" in rest
+        items.append({"status": "blocked" if blocked else "done", "date": date or "", "time": time or "",
+                      "type": (typ or "other").lower(), "title": title.strip(), "output": out.strip()})
+    return items
+
+
+def list_outputs():
+    out = []
+    base = ROOT / "outputs"
+    for p in base.rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(ROOT).as_posix()
+        title = p.stem
+        if p.suffix == ".md":
+            for ln in read(p).splitlines()[:15]:
+                if ln.startswith("# "):
+                    title = ln[2:].strip()
+                    break
+        st = p.stat()
+        out.append({"path": rel, "kind": p.relative_to(base).parts[0] if len(p.relative_to(base).parts) > 1 else "other",
+                    "name": p.name, "title": title, "ext": p.suffix.lower(), "size": st.st_size,
+                    "modified": datetime.fromtimestamp(st.st_mtime).isoformat(timespec="minutes")})
+    out.sort(key=lambda o: o["modified"], reverse=True)
+    return out
+
+
+def list_logs():
+    logs = sorted((ROOT / "logs").glob("*.md"), reverse=True)
+    return [{"path": p.relative_to(ROOT).as_posix(), "date": p.stem} for p in logs]
+
+
+def read_status():
+    try:
+        return json.loads(read(STATUS) or "null")
+    except json.JSONDecodeError:  # mid-write; the next poll will catch it
+        return None
+
+
+def state():
+    tasks, done = parse_inbox(), parse_done()
+    today = datetime.now().strftime("%Y-%m-%d")
+    return {
+        "now": datetime.now().isoformat(timespec="seconds"),
+        "root": str(ROOT),
+        "tasks": tasks,
+        "done": done,
+        "outputs": list_outputs(),
+        "logs": list_logs(),
+        "schedules": SCHEDULES,
+        "recurring": read(RECURRING),
+        "progress": read_status(),
+        "stats": {
+            "queued": sum(t["state"] == "queued" for t in tasks),
+            "running": sum(t["state"] == "running" for t in tasks),
+            "doneToday": sum(d["date"] == today and d["status"] == "done" for d in done),
+            "blocked": sum(d["status"] == "blocked" for d in done[:20]),
+        },
+    }
+
+
+def safe_path(rel: str) -> Path:
+    p = (ROOT / rel).resolve()
+    if not any(p.is_relative_to(r.resolve()) for r in READABLE) or not p.is_file():
+        raise ValueError("path not allowed")
+    return p
+
+
+def one_line(s: str) -> str:
+    return " ".join(str(s or "").split())
+
+
+def add_task(body):
+    typ = body.get("type")
+    prio = body.get("priority", "normal")
+    title = one_line(body.get("title"))
+    if typ not in TYPES or prio not in PRIORITIES or not title:
+        raise ValueError("type, priority and title are required")
+    summary = one_line(body.get("summary"))
+    repo = one_line(body.get("repo"))
+    if typ == "code" and repo:
+        summary = (summary + "; " if summary else "") + "repo: " + repo
+    line = f"- [ ] [{typ}] ({prio}) {title}" + (f" — {summary}" if summary else "")
+    extra = [f"  {one_line(x)}" for x in str(body.get("details") or "").splitlines() if x.strip()]
+    lines = read(INBOX).splitlines()
+    start = queue_bounds(lines)
+    if start == len(lines) and not any(l.strip().lower() == "## queue" for l in lines):
+        lines += ["", "## Queue"]
+        start = len(lines)
+    # Insert after the last task block so the queue keeps its order.
+    end = start
+    for i in range(start, len(lines)):
+        if lines[i].strip():
+            end = i + 1
+    lines[end:end] = [line, *extra]
+    write(INBOX, "\n".join(lines) + "\n")
+
+
+def edit_task(body, action):
+    lines = read(INBOX).splitlines()
+    i, raw = int(body.get("line", -1)), body.get("raw")
+    if not (queue_bounds(lines) <= i < len(lines)) or lines[i] != raw:
+        raise ValueError("Inbox changed since you loaded it; refresh and try again")
+    if action == "delete":
+        j = i + 1
+        while j < len(lines) and lines[j].startswith((" ", "\t")) and lines[j].strip():
+            j += 1
+        del lines[i:j]
+    elif action == "reset":
+        lines[i] = lines[i].replace("- [~]", "- [ ]", 1)
+    elif action == "priority":
+        prio = body.get("priority")
+        if prio not in PRIORITIES:
+            raise ValueError("bad priority")
+        m = TASK_RE.match(lines[i])
+        state_, typ, _, text = m.groups()
+        lines[i] = f"- [{state_}] " + (f"[{typ}] " if typ else "") + f"({prio}) {text}"
+    write(INBOX, "\n".join(lines) + "\n")
+
+
+class Handler(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def _ok_host(self):
+        return self.headers.get("Host", "") in (f"127.0.0.1:{PORT}", f"localhost:{PORT}")
+
+    def _send(self, code, body, ctype="application/json; charset=utf-8"):
+        data = body if isinstance(body, bytes) else json.dumps(body).encode()
+        self.send_response(code)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.end_headers()
+        self.wfile.write(data)
+
+    def do_GET(self):
+        if not self._ok_host():
+            return self._send(403, {"error": "forbidden"})
+        u = urlparse(self.path)
+        try:
+            if u.path in ("/", "/index.html"):
+                return self._send(200, (HERE / "index.html").read_bytes(), "text/html; charset=utf-8")
+            if u.path == "/api/state":
+                return self._send(200, state())
+            if u.path == "/api/runs":
+                return self._send(200, feed.runs())
+            if u.path == "/api/feed":
+                return self._send(200, feed.feed(parse_qs(u.query).get("id", [""])[0]))
+            if u.path == "/api/file":
+                p = safe_path(parse_qs(u.query).get("path", [""])[0])
+                if p.suffix.lower() not in {".md", ".txt", ".csv", ".patch", ".json"}:
+                    return self._send(200, {"binary": True, "name": p.name})
+                return self._send(200, {"name": p.name, "content": read(p)})
+        except ValueError as e:
+            return self._send(400, {"error": str(e)})
+        self._send(404, {"error": "not found"})
+
+    def do_POST(self):
+        # The custom header forces a CORS preflight that we never approve, so other sites can't post here.
+        if not self._ok_host() or self.headers.get("X-AIWF") != "1":
+            return self._send(403, {"error": "forbidden"})
+        try:
+            n = int(self.headers.get("Content-Length", "0"))
+            body = json.loads(self.rfile.read(min(n, 200_000)) or b"{}")
+            route = urlparse(self.path).path
+            if route == "/api/tasks":
+                add_task(body)
+            elif route in ("/api/tasks/delete", "/api/tasks/reset", "/api/tasks/priority"):
+                edit_task(body, route.rsplit("/", 1)[1])
+            elif route == "/api/recurring":
+                write(RECURRING, str(body.get("text", "")).replace("\r\n", "\n"))
+            elif route == "/api/open":
+                rel = body.get("path") or ""
+                p = (ROOT / rel).resolve() if rel.endswith("/") else safe_path(rel)
+                if rel.endswith("/"):
+                    if not p.is_relative_to(ROOT) or not p.is_dir():
+                        raise ValueError("path not allowed")
+                elif p.suffix.lower() not in OPENABLE_EXT:
+                    raise ValueError("file type not allowed")
+                os.startfile(str(p))  # Windows: open with the default app / Explorer
+            else:
+                return self._send(404, {"error": "not found"})
+            return self._send(200, {"ok": True})
+        except (ValueError, KeyError, json.JSONDecodeError) as e:
+            return self._send(400, {"error": str(e)})
+
+
+def seed_task_files():
+    """First start on a fresh clone: create the personal task files from the committed examples."""
+    for p in (INBOX, DONE, RECURRING):
+        ex = p.with_name(p.stem + ".example.md")
+        if not p.exists() and ex.exists():
+            write(p, read(ex))
+
+
+if __name__ == "__main__":
+    seed_task_files()
+    url = f"http://127.0.0.1:{PORT}"
+    try:
+        srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
+    except OSError:
+        print(f"Dashboard already running at {url}")
+        webbrowser.open(url)
+        sys.exit(0)
+    print(f"AI Workflow dashboard: {url}  (Ctrl+C to stop)")
+    if "--no-browser" not in sys.argv:
+        webbrowser.open(url)
+    try:
+        srv.serve_forever()
+    except KeyboardInterrupt:
+        pass
