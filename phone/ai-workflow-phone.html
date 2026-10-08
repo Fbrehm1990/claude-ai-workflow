@@ -1,0 +1,451 @@
+<title>AI Workflow Mobile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
+<style>
+/* Layout: phone app shell. Sticky header, one scrolling view, fixed bottom tab bar, floating add button.
+   Look: the desktop dashboard's control-room skin, one committed dark theme (glass panels, faint grid, cyan + violet). */
+:root{
+  color-scheme:dark;
+  --bg:#060912; --card:rgba(14,20,36,.82); --sunk:rgba(110,160,255,.08); --line:rgba(110,160,255,.15); --line-hi:rgba(70,227,255,.45);
+  --fg:#e4ebff; --muted:#8792b0;
+  --accent:#46e3ff; --accent-2:#8f7bff; --accent-ink:#04111c; --accent-soft:rgba(70,227,255,.10);
+  --ok:#38f2a6; --ok-soft:rgba(56,242,166,.12); --warn:#ffc65c; --warn-soft:rgba(255,198,92,.12); --bad:#ff5d7a; --bad-soft:rgba(255,93,122,.12);
+  --research:#5ea8ff; --code:#b08cff; --brief:#ffc65c; --docs:#38f2a6;
+  --glow:0 0 0 1px rgba(70,227,255,.35), 0 0 18px rgba(70,227,255,.18);
+  --display:"Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+  --body:system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font:15px/1.5 var(--body);-webkit-tap-highlight-color:transparent}
+button,input,select,textarea{font:inherit;color:inherit}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+.wrap{max-width:560px;margin:0 auto;padding:0 16px 120px}
+
+header.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--bg);padding:14px 0 10px;display:flex;align-items:center;gap:10px}
+.mark{width:30px;height:30px;border-radius:9px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:750;font-family:var(--display)}
+header.top h1{font-size:19px;font-weight:750;letter-spacing:-.01em}
+.sync{margin-left:auto;font-size:12px;color:var(--muted);text-align:right;line-height:1.3}
+.sync b{display:block;color:var(--fg);font-weight:600}
+
+.view{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;min-width:0}
+.card-h{display:flex;align-items:center;gap:8px;padding:13px 16px 4px}
+.card-h h2{font-size:15px;font-weight:650}
+.card-h .n{color:var(--muted);font-size:13px}
+.empty{padding:18px 16px 20px;color:var(--muted);font-size:14px}
+
+.status{padding:16px;display:flex;gap:12px;align-items:flex-start}
+.dot{width:12px;height:12px;border-radius:50%;background:var(--muted);flex:none;margin-top:6px;position:relative}
+.dot.working{background:var(--ok)}
+.dot.working::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--ok);animation:ping 1.6s ease-out infinite}
+.dot.stale{background:var(--warn)}
+@keyframes ping{from{transform:scale(.6);opacity:.9}to{transform:scale(1.5);opacity:0}}
+.status h2{font-size:18px;font-weight:700}
+.status p{margin:2px 0 0;color:var(--muted);font-size:13.5px}
+
+.counts{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.count{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 10px;text-align:left;cursor:pointer}
+.count .v{font-family:var(--display);font-size:24px;font-weight:750;font-variant-numeric:tabular-nums;line-height:1.1}
+.count .l{font-size:12px;color:var(--muted)}
+.count.alert .v{color:var(--bad)}
+
+.list{list-style:none;margin:0;padding:4px 0}
+.row{display:flex;gap:10px;align-items:flex-start;padding:11px 16px;border-top:1px solid var(--line)}
+.list .row:first-child{border-top:0}
+.row .main{flex:1;min-width:0}
+.row .t{font-weight:560;overflow-wrap:anywhere}
+.row .d{color:var(--muted);font-size:13px;overflow-wrap:anywhere;margin-top:2px;white-space:pre-wrap}
+.row.tap{cursor:pointer}
+.row.tap:active{background:var(--sunk)}
+.chev{color:var(--muted);align-self:center}
+.meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:3px;font-size:12px;color:var(--muted)}
+.tag{font-size:11.5px;font-weight:650;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--c) 14%,transparent);color:var(--c);text-transform:capitalize}
+.pill{font-size:11.5px;font-weight:600;padding:1px 8px;border-radius:999px;background:var(--sunk);color:var(--muted)}
+.pill.high{background:var(--bad-soft);color:var(--bad)}
+.pill.wait{background:var(--warn-soft);color:var(--warn)}
+.pill.run{background:var(--accent-soft);color:var(--accent)}
+.reason{margin-top:6px;padding:8px 10px;border-radius:10px;background:var(--bad-soft);font-size:13px}
+.steps{display:flex;gap:3px;height:7px;margin-top:8px}
+.steps span{flex:1;border-radius:3px;background:var(--sunk)}
+.steps span.on{background:var(--c,var(--accent))}
+.sched{display:flex;justify-content:space-between;gap:10px;padding:10px 16px;border-top:1px solid var(--line);font-size:14px}
+.list .sched:first-child{border-top:0}
+.sched b{font-weight:600;font-variant-numeric:tabular-nums}
+.note{font-size:13px;color:var(--muted);padding:0 4px}
+.warnbox{background:var(--warn-soft);color:var(--fg);border-radius:12px;padding:10px 12px;font-size:13.5px}
+
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:7px 12px;cursor:pointer;font-weight:560;font-size:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.sm{padding:4px 10px;font-size:13px}
+.btn.ghost{background:none;border-color:transparent;color:var(--muted)}
+.btn:focus-visible,.tab:focus-visible,.count:focus-visible,.fab:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+nav.tabs{position:fixed;left:0;right:0;bottom:0;z-index:10;background:var(--card);border-top:1px solid var(--line);padding:6px 8px calc(6px + env(safe-area-inset-bottom,0px));display:flex;justify-content:center}
+nav.tabs .in{display:grid;grid-template-columns:repeat(4,1fr);width:100%;max-width:560px}
+.tab{background:none;border:0;padding:6px 2px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11.5px;color:var(--muted);cursor:pointer;position:relative}
+.tab svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current=page]{color:var(--accent);font-weight:650}
+.tab .b{position:absolute;top:2px;left:calc(50% + 8px);min-width:17px;height:17px;padding:0 5px;border-radius:9px;background:var(--bad);color:#fff;font-size:10.5px;font-weight:700;display:grid;place-items:center}
+.fab{position:fixed;right:max(16px,calc(50% - 264px));bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:11;width:56px;height:56px;border-radius:18px;border:0;background:var(--accent);color:var(--accent-ink);font-size:30px;line-height:1;box-shadow:0 6px 20px rgba(40,30,120,.3);cursor:pointer}
+
+.sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:var(--card);border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-height:90%;overflow-y:auto}
+.sheet .in{max-width:560px;margin:0 auto;display:flex;flex-direction:column;gap:12px}
+.sheet h2{font-size:18px}
+.types{display:flex;gap:6px;flex-wrap:wrap}
+.types button{border:1px solid var(--line);background:var(--card);border-radius:999px;padding:6px 12px;cursor:pointer;font-size:14px}
+.types button[aria-pressed=true]{border-color:var(--c);background:color-mix(in srgb,var(--c) 14%,var(--card));font-weight:650}
+label.f{font-size:12.5px;color:var(--muted);display:block;margin-bottom:4px}
+input[type=text],select,textarea{width:100%;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:10px 12px;font-size:16px;outline:none}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{min-height:84px;resize:vertical}
+.sheet .acts{display:flex;gap:8px;justify-content:flex-end}
+.err{color:var(--bad);font-size:13.5px}
+
+.reader{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.reader .bar{display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--card)}
+.reader .bar span{font-weight:650;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.reader .body{overflow-y:auto;padding:8px 16px calc(40px + env(safe-area-inset-bottom,0px))}
+.md{max-width:640px;margin:0 auto;line-height:1.65;overflow-wrap:anywhere}
+.md h1{font-size:22px;margin:16px 0 8px}.md h2{font-size:18px;margin:22px 0 6px}.md h3{font-size:16px;margin:16px 0 4px}
+.md table{display:block;overflow-x:auto;border-collapse:collapse;font-size:13.5px}.md td,.md th{border:1px solid var(--line);padding:6px 8px;vertical-align:top}.md th{background:var(--sunk)}
+.md code{background:var(--sunk);padding:1px 5px;border-radius:5px;font-size:13px}
+.md pre{background:var(--sunk);padding:12px;border-radius:10px;overflow-x:auto}.md pre code{background:none;padding:0}
+.md blockquote{margin:8px 0;padding:2px 12px;border-left:3px solid var(--line);color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(140px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:9px 16px;border-radius:12px;z-index:40;font-size:14px;max-width:calc(100% - 32px)}
+/* ===== control-room skin ===== */
+body{background:radial-gradient(700px 420px at 100% -5%,rgba(143,123,255,.18),transparent 60%),radial-gradient(600px 400px at -10% 105%,rgba(70,227,255,.10),transparent 60%),var(--bg);background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;background-image:linear-gradient(rgba(110,160,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(110,160,255,.05) 1px,transparent 1px);background-size:32px 32px;mask-image:radial-gradient(ellipse at 50% 20%,#000 30%,transparent 80%)}
+.wrap{position:relative;z-index:1}
+header.top{background:linear-gradient(var(--bg) 70%,transparent)}
+header.top h1{font-weight:700;font-size:18px;letter-spacing:.08em;text-transform:uppercase}
+.mark{background:#07101f;color:var(--accent);border:1.5px solid var(--accent);box-shadow:var(--glow)}
+.sync{font-family:var(--mono);font-size:11px}
+.sync b{font-family:var(--display);font-size:13px;letter-spacing:.03em}
+.card,.count{background:var(--card);border-color:var(--line);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 30px rgba(0,0,0,.25);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.card-h h2{font-size:11.5px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#c9d4f5}
+.card-h h2::before{content:"";display:inline-block;width:6px;height:6px;margin-right:9px;vertical-align:2px;background:var(--accent);box-shadow:0 0 8px var(--accent);transform:rotate(45deg)}
+.card-h .n,.meta,.note,.pill,.sched span{font-family:var(--mono)}
+.status h2{letter-spacing:.03em}
+.dot.working{box-shadow:0 0 10px var(--ok)}.dot.stale{box-shadow:0 0 10px var(--warn)}
+.count{position:relative;overflow:hidden}
+.count::before,.count::after{content:"";position:absolute;width:10px;height:10px;border-color:var(--accent);opacity:.55}
+.count::before{top:6px;left:6px;border-top:1.5px solid;border-left:1.5px solid}
+.count::after{bottom:6px;right:6px;border-bottom:1.5px solid;border-right:1.5px solid}
+.count .v{font-weight:600;color:#fff;text-shadow:0 0 16px rgba(70,227,255,.35)}
+.count .l{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase}
+.count.alert .v{color:var(--bad);text-shadow:0 0 16px rgba(255,93,122,.45)}
+.count:active{border-color:var(--line-hi);box-shadow:var(--glow)}
+.tag{border:1px solid color-mix(in srgb,var(--c) 40%,transparent)}
+.pill{font-size:10px;letter-spacing:.06em;text-transform:uppercase}
+.steps span.on{box-shadow:0 0 8px color-mix(in srgb,var(--c,var(--accent)) 60%,transparent)}
+.sched b{font-family:var(--display);color:#fff}
+.reason{border:1px solid rgba(255,93,122,.25)}
+.warnbox{border:1px solid rgba(255,198,92,.25)}
+.btn{background:rgba(20,28,48,.85);border-color:var(--line)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:var(--accent-ink);font-weight:650;box-shadow:0 0 16px rgba(70,227,255,.25)}
+.btn.ghost{background:transparent;border-color:transparent}
+nav.tabs{background:rgba(7,11,22,.9);border-top-color:var(--line);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.tab{font-family:var(--mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase}
+.tab[aria-current=page]{color:var(--accent);text-shadow:0 0 10px rgba(70,227,255,.5)}
+.tab[aria-current=page] svg{filter:drop-shadow(0 0 6px rgba(70,227,255,.7))}
+.tab .b{box-shadow:0 0 10px rgba(255,93,122,.5)}
+.fab{background:linear-gradient(135deg,var(--accent),var(--accent-2));box-shadow:0 0 24px rgba(70,227,255,.45),0 8px 24px rgba(0,0,0,.4)}
+.sheet{background:rgba(9,14,28,.97);border-top:1px solid var(--line-hi);box-shadow:0 -10px 40px rgba(0,0,0,.5)}
+.sheet h2{letter-spacing:.04em}
+.types button{background:rgba(20,28,48,.85);border-color:var(--line)}
+.types button[aria-pressed=true]{box-shadow:0 0 12px color-mix(in srgb,var(--c) 35%,transparent)}
+input[type=text],select,textarea{background:rgba(6,10,20,.75);border-color:var(--line);color:var(--fg)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(70,227,255,.15)}
+select option{background:#0c1324}
+.reader{background:var(--bg)}
+.reader .bar{background:rgba(9,14,28,.95);border-bottom-color:var(--line)}
+.reader .bar span{font-family:var(--display);letter-spacing:.03em}
+.md th{background:var(--sunk)}.md td,.md th{border-color:var(--line)}
+.toast{background:rgba(8,14,28,.96);color:var(--fg);border:1px solid var(--line-hi);box-shadow:var(--glow)}
+/* desktop button palette carried through: the cyan -> violet gradient marks what's live or selected */
+:root{--grad:linear-gradient(135deg,var(--accent),var(--accent-2))}
+header.top h1{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.card-h h2::before{background:var(--grad)}
+.count .v{background:linear-gradient(180deg,#ffffff,var(--accent) 140%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.count.alert .v{background:none;color:var(--bad)}
+.card.live{border-color:transparent;background:linear-gradient(var(--card),var(--card)) padding-box,var(--grad) border-box;border:1px solid transparent;box-shadow:0 0 22px rgba(70,227,255,.18)}
+.steps span.on{background:var(--grad)}
+.tab[aria-current=page]{color:var(--accent-ink);text-shadow:none}
+.tab[aria-current=page] svg{filter:none}
+.tab[aria-current=page]::before{content:"";position:absolute;inset:2px 10%;border-radius:12px;background:var(--grad);box-shadow:0 0 16px rgba(70,227,255,.35);z-index:-1}
+.tab{z-index:0}
+.btn:not(.primary):not(.ghost){border-color:rgba(70,227,255,.3);color:var(--accent)}
+.pill.run{background:var(--grad);color:var(--accent-ink)}
+.types button[aria-pressed=true]{background:var(--grad);border-color:transparent;color:var(--accent-ink);box-shadow:0 0 14px rgba(70,227,255,.3)}
+a{color:var(--accent)}
+@media (prefers-reduced-motion:reduce){.dot.working::after{animation:none}}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <span class="mark">✓</span>
+    <h1>AI Workflow</h1>
+    <div class="sync" id="sync"><b>Connecting…</b></div>
+  </header>
+  <main id="view" class="view" aria-live="polite"></main>
+</div>
+
+<button class="fab" id="fab" aria-label="Add a task">+</button>
+<nav class="tabs" aria-label="Sections"><div class="in">
+  <button class="tab" data-tab="home"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></svg>Home</button>
+  <button class="tab" data-tab="queue"><svg viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></svg>Queue</button>
+  <button class="tab" data-tab="results"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 10"/></svg>Results</button>
+  <button class="tab" data-tab="blocked"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></svg>Blocked<span class="b" id="bBlocked" hidden></span></button>
+</div></nav>
+
+<div id="sheetRoot"></div>
+<div id="readerRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+const TYPES = {research:"Research", code:"Code", brief:"Brief", docs:"Docs & data"};
+const TYPE_NOTE = {
+  research:"A cited report with a recommendation.",
+  code:"Works on a branch and leaves a draft PR or patch. Name the repo in the details.",
+  brief:"A short, cited news or status brief.",
+  docs:"Documents, spreadsheets or data cleanup. Originals are never changed."};
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const tag = t => `<span class="tag" style="--c:var(--${TYPES[t] ? t : "research"})">${esc(TYPES[t] || t)}</span>`;
+let db = null, S = null, INBOX = [], tab = "home", loaded = false, pruned = false;
+
+try { tab = localStorage.getItem("aiwf-phone-tab") || "home"; } catch {}
+
+function ago(iso){
+  if (!iso) return "";
+  const m = Math.round((Date.now() - new Date(iso)) / 60000);
+  if (m < 1) return "just now"; if (m < 60) return m + " min ago";
+  const h = Math.round(m / 60); if (h < 24) return h + " h ago";
+  return new Date(iso).toLocaleDateString([], {month:"short", day:"numeric"});
+}
+function when(iso){
+  if (!iso) return "–";
+  const d = new Date(iso), now = new Date(), t = d.toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
+  if (d.toDateString() === now.toDateString()) return "Today " + t;
+  const tm = new Date(now); tm.setDate(now.getDate() + 1);
+  if (d.toDateString() === tm.toDateString()) return "Tomorrow " + t;
+  return d.toLocaleDateString([], {weekday:"short"}) + " " + t;
+}
+function toast(msg){
+  $("#toastRoot").innerHTML = `<div class="toast" role="status">${esc(msg)}</div>`;
+  clearTimeout(toast.t); toast.t = setTimeout(() => $("#toastRoot").innerHTML = "", 2600);
+}
+
+/* ---------- views ---------- */
+function render(){
+  document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
+  const blocked = S?.blocked?.length || 0;
+  $("#bBlocked").hidden = !blocked; $("#bBlocked").textContent = blocked;
+  renderSync();
+  const v = $("#view");
+  if (!db){ v.innerHTML = loaded ? `<div class="card empty">This page needs to be opened on claude.ai while you're signed in, so it can reach your workflow's data.</div>`
+                                  : `<div class="card empty">Connecting to your workflow…</div>`; return; }
+  if (!S){ v.innerHTML = `<div class="card"><div class="status"><span class="dot"></span><div><h2>Waiting for your PC</h2>
+      <p>Your PC sends its status here every 30 minutes while the Claude app is open. You can already add tasks with the + button; they'll be picked up on the next sync.</p></div></div></div>${pendingCard()}`; return; }
+  v.innerHTML = {home: homeView, queue: queueView, results: resultsView, blocked: blockedView}[tab]();
+}
+
+function renderSync(){
+  if (!S){ $("#sync").innerHTML = `<b>${db ? "Not synced yet" : "Offline"}</b>`; return; }
+  const mins = (Date.now() - new Date(S.updated)) / 60000;
+  $("#sync").innerHTML = `<b>Synced ${esc(ago(S.updated))}</b>${mins > 75 ? "PC may be off" : "from your PC"}`;
+}
+
+function statusCard(){
+  const r = S.run || {}, st = r.state || "idle";
+  const title = st === "working" ? `Working · ${esc(r.name || "run")}` : st === "stale" ? "Possibly stuck" : "Idle";
+  const nxt = (S.schedules || []).filter(s => s.next).sort((a,b) => a.next.localeCompare(b.next))[0];
+  const sub = st === "working" ? `Started ${esc(when(r.started))}`
+    : st === "stale" ? "The current run has gone quiet. Check it in the Claude app on your PC."
+    : `${r.ended ? `Last run finished ${esc(ago(r.ended))}. ` : ""}${nxt ? `Next: ${esc(nxt.name)}, ${esc(when(nxt.next))}.` : ""}`;
+  const mins = (Date.now() - new Date(S.updated)) / 60000;
+  return `<div class="card ${st === "working" ? "live" : ""}"><div class="status"><span class="dot ${st}"></span><div style="min-width:0"><h2>${title}</h2><p>${sub}</p></div></div>
+    ${(S.running || []).map(runRow).join("")}
+    ${mins > 75 ? `<div style="padding:0 16px 14px"><div class="warnbox">This status is from ${esc(ago(S.updated))}. Your PC syncs every 30 minutes while it's on and the Claude app is open.</div></div>` : ""}</div>`;
+}
+function runRow(t){
+  const segs = Array.from({length: t.total || 1}, (_, i) => `<span class="${i < (t.step || 0) ? "on" : ""}"></span>`).join("");
+  return `<div class="row" style="--c:var(--${TYPES[t.type] ? t.type : "research"})"><div class="main">
+    <div class="meta">${tag(t.type)}<span>Step ${t.step} of ${t.total} · ${esc(t.label)}</span></div>
+    <div class="t">${esc(t.title)}</div>${t.note ? `<div class="d">${esc(t.note)}</div>` : ""}
+    <div class="steps">${segs}</div></div></div>`;
+}
+
+function homeView(){
+  const st = S.stats || {}, pend = INBOX.filter(d => d.status === "new").length;
+  const counts = [["queue", (st.queued || 0) + pend, "Queued"], ["queue", st.running || 0, "Running"], ["results", st.doneToday || 0, "Done today"], ["blocked", (S.blocked || []).length, "Blocked"]];
+  const latest = (S.done || []).slice(0, 3);
+  return `${statusCard()}
+    <div class="counts">${counts.map(([t, n, l]) => `<button class="count ${l === "Blocked" && n ? "alert" : ""}" data-go="${t}"><div class="v">${n}</div><div class="l">${l}</div></button>`).join("")}</div>
+    <div class="card"><div class="card-h"><h2>Latest results</h2></div>
+      ${latest.length ? `<ul class="list">${latest.map(doneRow).join("")}</ul>` : `<div class="empty">Finished tasks will show up here.</div>`}</div>
+    <div class="card"><div class="card-h"><h2>Schedule</h2></div><div class="list">
+      ${(S.schedules || []).map(s => `<div class="sched"><span>${esc(s.name)}</span><b>${esc(when(s.next))}</b></div>`).join("")}</div></div>`;
+}
+
+function pendingCard(){
+  const pend = INBOX.filter(d => d.status === "new");
+  if (!pend.length) return "";
+  return `<div class="card"><div class="card-h"><h2>Added from your phone</h2><span class="n">${pend.length}</span></div><ul class="list">
+    ${pend.map(d => `<li class="row"><div class="main"><div class="meta">${tag(d.type)}<span class="pill wait">Waiting for PC sync</span>${d.priority === "high" ? '<span class="pill high">high</span>' : ""}</div>
+      <div class="t">${esc(d.title)}</div>${d.details ? `<div class="d">${esc(d.details)}</div>` : ""}</div>
+      <button class="btn sm ghost" data-cancel="${esc(d.id)}">Cancel</button></li>`).join("")}</ul></div>`;
+}
+
+function queueView(){
+  const order = {high:0, normal:1, low:2};
+  const running = (S.queue || []).filter(t => t.state === "running");
+  const queued = (S.queue || []).filter(t => t.state !== "running").sort((a,b) => order[a.priority] - order[b.priority]);
+  return `${pendingCard()}
+    ${(S.running || []).length || running.length ? `<div class="card"><div class="card-h"><h2>Running now</h2></div>
+      ${(S.running || []).length ? S.running.map(runRow).join("") : `<ul class="list">${running.map(t => `<li class="row"><div class="main"><div class="meta">${tag(t.type)}<span class="pill run">In progress</span></div><div class="t">${esc(t.title)}</div></div></li>`).join("")}</ul>`}</div>` : ""}
+    <div class="card"><div class="card-h"><h2>In the queue</h2><span class="n">${queued.length || ""}</span></div>
+      ${queued.length ? `<ul class="list">${queued.map((t, i) => `<li class="row"><div class="main"><div class="meta">${tag(t.type)}${t.priority !== "normal" ? `<span class="pill ${t.priority === "high" ? "high" : ""}">${esc(t.priority)}</span>` : ""}<span>#${i + 1} in line</span></div>
+        <div class="t">${esc(t.title)}</div>${t.details ? `<div class="d">${esc(t.details)}</div>` : ""}</div></li>`).join("")}</ul>`
+      : `<div class="empty">Nothing waiting. Tap + to add a task.</div>`}</div>
+    <p class="note">Queue runs happen at 9 AM, 12 PM and 3 PM, up to 3 tasks each. To edit or reorder tasks, use the dashboard on your PC.</p>`;
+}
+
+function doneRow(d){
+  const has = d.report && (S.reports || []).some(r => r.id === d.report);
+  return `<li class="row ${has ? "tap" : ""}" ${has ? `data-report="${esc(d.report)}" role="button" tabindex="0"` : ""}><div class="main">
+    <div class="meta">${tag(d.type)}<span>${esc(d.date)} ${esc(d.time)}</span></div><div class="t">${esc(d.title)}</div>
+    ${!has && d.output ? `<div class="d">${esc(d.output)}</div>` : ""}</div>${has ? `<span class="chev">›</span>` : ""}</li>`;
+}
+function resultsView(){
+  const done = S.done || [], linked = new Set(done.map(d => d.report));
+  const other = (S.reports || []).filter(r => !linked.has(r.id));
+  return `<div class="card"><div class="card-h"><h2>Finished tasks</h2><span class="n">${done.length || ""}</span></div>
+      ${done.length ? `<ul class="list">${done.map(doneRow).join("")}</ul>` : `<div class="empty">Nothing finished yet.</div>`}</div>
+    ${other.length ? `<div class="card"><div class="card-h"><h2>Briefs & digests</h2></div><ul class="list">
+      ${other.map(r => `<li class="row tap" data-report="${esc(r.id)}" role="button" tabindex="0"><div class="main"><div class="meta"><span class="pill">${esc(r.kind)}</span><span>${esc(ago(r.modified))}</span></div><div class="t">${esc(r.title)}</div></div><span class="chev">›</span></li>`).join("")}</ul></div>` : ""}`;
+}
+
+function blockedView(){
+  const b = S.blocked || [];
+  return `<div class="card"><div class="card-h"><h2>Blocked</h2><span class="n">${b.length || ""}</span></div>
+    ${b.length ? `<ul class="list">${b.map((x, i) => `<li class="row"><div class="main"><div class="meta">${tag(x.type)}<span>${esc(x.date)}</span></div>
+      <div class="t">${esc(x.title)}</div>${x.reason ? `<div class="reason"><b>Why:</b> ${esc(x.reason)}</div>` : ""}
+      <div style="margin-top:8px"><button class="btn sm primary" data-retry="${i}">Retry with more info</button></div></div></li>`).join("")}</ul>`
+    : `<div class="empty">Nothing blocked.</div>`}</div>
+    <p class="note">A retry adds a new task with your answer attached. Dismiss old blocked items from the dashboard on your PC.</p>`;
+}
+
+/* ---------- add task sheet ---------- */
+function openSheet(pre = {}){
+  let type = pre.type && TYPES[pre.type] ? pre.type : "research";
+  $("#sheetRoot").innerHTML = `<div class="sheet-bg" data-close></div>
+    <form class="sheet" id="addForm" role="dialog" aria-modal="true" aria-label="${pre.retry ? "Retry task" : "Add a task"}"><div class="in">
+      <h2>${pre.retry ? "Retry task" : "New task"}</h2>
+      <div class="types" id="types">${Object.entries(TYPES).map(([k, l]) => `<button type="button" data-type="${k}" style="--c:var(--${k})" aria-pressed="${k === type}">${l}</button>`).join("")}</div>
+      <div class="note" id="typeNote" style="padding:0">${TYPE_NOTE[type]}</div>
+      <div><label class="f" for="fTitle">What should it do?</label><input type="text" id="fTitle" maxlength="300" required value="${esc(pre.title || "")}" placeholder="e.g. Compare website builders for a bakery"></div>
+      ${pre.retry ? `<div class="reason"><b>Why it was blocked:</b> ${esc(pre.reason || "no reason given")}</div>` : ""}
+      <div><label class="f" for="fDetails">${pre.retry ? "Your answer: what should the next attempt know?" : "Details (optional)"}</label><textarea id="fDetails" ${pre.retry ? "required" : ""} placeholder="${pre.retry ? "e.g. the location, repo or file it needs" : "Scope, format, sources, repo for code tasks…"}"></textarea></div>
+      <div><label class="f" for="fPrio">Priority</label><select id="fPrio"><option value="high">High</option><option value="normal" selected>Normal</option><option value="low">Low</option></select></div>
+      <div class="err" id="fErr" hidden></div>
+      <div class="acts"><button type="button" class="btn ghost" data-close>Cancel</button><button class="btn primary" id="fSave">Add to queue</button></div>
+    </div></form>`;
+  $("#types").addEventListener("click", e => {
+    const b = e.target.closest("[data-type]"); if (!b) return;
+    type = b.dataset.type;
+    document.querySelectorAll("#types button").forEach(x => x.setAttribute("aria-pressed", x === b));
+    $("#typeNote").textContent = TYPE_NOTE[type];
+  });
+  $("#addForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const title = $("#fTitle").value.trim(); if (!title) return;
+    let details = $("#fDetails").value.trim();
+    if (pre.retry) details = `Previous attempt was blocked: ${pre.reason || "no reason given"}\nOwner's answer: ${details}`;
+    $("#fSave").disabled = true;
+    try {
+      await db.collection("inbox").add({type, priority: $("#fPrio").value, title, details, status: "new", createdAt: new Date().toISOString()});
+      closeSheet(); toast("Added. Your PC picks it up on its next sync."); tab = "queue"; render();
+    } catch (err) {
+      $("#fErr").hidden = false;
+      $("#fErr").textContent = err?.code === "quota_exceeded" ? "The phone inbox is full. Let your PC sync, then try again." : "Couldn't save the task. Check your connection and try again.";
+      $("#fSave").disabled = false;
+    }
+  });
+  setTimeout(() => $("#fTitle").focus(), 50);
+}
+function closeSheet(){ $("#sheetRoot").innerHTML = ""; }
+
+/* ---------- report reader ---------- */
+async function openReport(id){
+  const meta = (S.reports || []).find(r => r.id === id);
+  $("#readerRoot").innerHTML = `<div class="reader" role="dialog" aria-modal="true" aria-label="Report"><div class="bar">
+    <button class="btn sm" data-closereader>‹ Back</button><span>${esc(meta?.title || "Report")}</span></div>
+    <div class="body"><div class="md" id="mdBody"><p class="note">Loading…</p></div></div></div>`;
+  try {
+    const snap = await db.doc("reports/" + id).get();
+    const md = snap.exists ? String(snap.data().markdown || "") : "";
+    const box = $("#mdBody"); if (!box) return;
+    if (!md){ box.innerHTML = `<p class="note">This report hasn't reached your phone yet. It arrives on the next sync from your PC.</p>`; return; }
+    if (window.marked && window.DOMPurify){
+      const tpl = document.createElement("template");
+      tpl.innerHTML = DOMPurify.sanitize(marked.parse(md), {FORBID_TAGS:["img","style","form","input"]});
+      tpl.content.querySelectorAll("a[href]").forEach(a => {
+        if (/^https?:/i.test(a.getAttribute("href"))){ a.target = "_blank"; a.rel = "noopener noreferrer"; }
+        else a.removeAttribute("href");   // local file links only work on the PC
+      });
+      box.replaceChildren(tpl.content);
+    } else box.innerHTML = `<pre style="white-space:pre-wrap">${esc(md)}</pre>`;
+  } catch { const box = $("#mdBody"); if (box) box.innerHTML = `<p class="note">Couldn't load the report. Check your connection and try again.</p>`; }
+}
+
+/* ---------- housekeeping: keep the phone database small ---------- */
+async function prune(){
+  if (pruned || !S) return; pruned = true;
+  try {
+    const keep = new Set((S.reports || []).map(r => r.id));
+    const reps = await db.collection("reports").get();
+    for (const d of reps.docs) if (!keep.has(d.id)) await db.doc("reports/" + d.id).delete();
+    const week = Date.now() - 7 * 864e5;
+    for (const d of INBOX) if (d.status === "synced" && new Date(d.syncedAt || d.createdAt) < week) await db.doc("inbox/" + d.id).delete();
+  } catch {}
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click", async e => {
+  const t = e.target;
+  const go = t.closest("[data-tab],[data-go]");
+  if (go){ tab = go.dataset.tab || go.dataset.go; try { localStorage.setItem("aiwf-phone-tab", tab); } catch {} render(); window.scrollTo({top:0}); return; }
+  if (t.closest("#fab")) return db ? openSheet() : toast("Open this page on claude.ai to add tasks.");
+  if (t.closest("[data-close]")) return closeSheet();
+  if (t.closest("[data-closereader]")) return $("#readerRoot").innerHTML = "";
+  const rep = t.closest("[data-report]"); if (rep) return openReport(rep.dataset.report);
+  const rt = t.closest("[data-retry]");
+  if (rt){ const b = S.blocked[+rt.dataset.retry]; return openSheet({retry:true, type:b.type, title:b.title, reason:b.reason}); }
+  const c = t.closest("[data-cancel]");
+  if (c){
+    if (c.dataset.armed !== "1"){ c.dataset.armed = "1"; c.textContent = "Tap to confirm"; setTimeout(() => { if (c.isConnected){ c.dataset.armed = ""; c.textContent = "Cancel"; } }, 3000); return; }
+    try { await db.doc("inbox/" + c.dataset.cancel).delete(); toast("Task cancelled"); } catch { toast("Couldn't cancel. Try again."); }
+  }
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape"){ closeSheet(); $("#readerRoot").innerHTML = ""; }
+  if (e.key === "Enter" && e.target.matches("[data-report]")) openReport(e.target.dataset.report);
+});
+setInterval(renderSync, 30000);
+
+/* ---------- connect ---------- */
+render();
+(async () => {
+  db = window.claude ? await window.claude.use("db") : null;
+  loaded = true;
+  if (!db){ render(); return; }
+  db.doc("state/current").onSnapshot(snap => { S = snap.exists ? snap.data() : null; render(); prune(); }, () => render());
+  db.collection("inbox").onSnapshot(q => { INBOX = q.docs.map(d => ({id: d.id, ...d.data()})).sort((a,b) => String(a.createdAt).localeCompare(String(b.createdAt))); render(); }, () => {});
+})();
+</script>

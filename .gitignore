@@ -13,3 +13,4 @@ logs/*
 outputs/**/*
 !outputs/*/
 !outputs/*/.gitkeep
+tasks/phone/

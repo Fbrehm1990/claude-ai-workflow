@@ -29,13 +29,13 @@ PRIORITIES = ["high", "normal", "low"]
 
 # Mirrors the schedules in the Claude app (sidebar → Scheduled). Edit here if you change them there.
 SCHEDULES = [
-    {"id": "ai-morning-brief", "name": "Morning brief", "days": [0, 1, 2, 3, 4], "times": ["07:06"]},
-    {"id": "ai-queue-worker", "name": "Queue worker", "days": [0, 1, 2, 3, 4, 5, 6], "times": ["09:00", "12:00", "15:00"]},
+    {"id": "ai-brief", "name": "Morning brief", "days": [0, 1, 2, 3, 4], "times": ["07:00"]},
+    {"id": "ai-queue", "name": "Queue worker", "days": [0, 1, 2, 3, 4, 5, 6], "times": ["09:00", "12:00", "15:00"]},
     {"id": "ai-evening-digest", "name": "Evening digest", "days": [0, 1, 2, 3, 4, 5, 6], "times": ["18:06"]},
 ]
 
 TASK_RE = re.compile(r"^- \[( |~)\]\s*(?:\[(\w+)\])?\s*(?:\((high|normal|low)\))?\s*(.*)$")
-DONE_RE = re.compile(r"^- \[(x|!)\]\s*(\d{4}-\d\d-\d\d)?\s*(\d\d:\d\d)?\s*(?:\[(\w+)\])?\s*(.*)$")
+DONE_RE = re.compile(r"^- \[(x|!|-)\]\s*(\d{4}-\d\d-\d\d)?\s*(\d\d:\d\d)?\s*(?:\[(\w+)\])?\s*(.*)$")
 
 
 def read(p: Path) -> str:
@@ -82,8 +82,14 @@ def parse_done():
             continue
         mark, date, time, typ, rest = m.groups()
         title, _, out = rest.partition("→")
-        blocked = mark == "!" or "BLOCKED" in rest
-        items.append({"status": "blocked" if blocked else "done", "date": date or "", "time": time or "",
+        reason = ""
+        if "BLOCKED" in rest:
+            head, _, reason = rest.partition("BLOCKED")
+            reason = reason.lstrip(":— -").strip()
+            if not out:
+                title = head.rstrip(" —-.")
+        status = "dismissed" if mark == "-" else "blocked" if (mark == "!" or "BLOCKED" in rest) else "done"
+        items.append({"raw": ln, "status": status, "date": date or "", "time": time or "", "reason": reason,
                       "type": (typ or "other").lower(), "title": title.strip(), "output": out.strip()})
     return items
 
@@ -92,7 +98,7 @@ def list_outputs():
     out = []
     base = ROOT / "outputs"
     for p in base.rglob("*"):
-        if not p.is_file():
+        if not p.is_file() or p.name.startswith("."):  # skip .gitkeep and other hidden files
             continue
         rel = p.relative_to(ROOT).as_posix()
         title = p.stem
@@ -138,7 +144,7 @@ def state():
             "queued": sum(t["state"] == "queued" for t in tasks),
             "running": sum(t["state"] == "running" for t in tasks),
             "doneToday": sum(d["date"] == today and d["status"] == "done" for d in done),
-            "blocked": sum(d["status"] == "blocked" for d in done[:20]),
+            "blocked": sum(d["status"] == "blocked" for d in done),
         },
     }
 
@@ -180,16 +186,38 @@ def add_task(body):
     write(INBOX, "\n".join(lines) + "\n")
 
 
+def block_end(lines, i):
+    """Index just past task i and its indented detail lines."""
+    j = i + 1
+    while j < len(lines) and lines[j].startswith((" ", "\t")) and lines[j].strip():
+        j += 1
+    return j
+
+
 def edit_task(body, action):
     lines = read(INBOX).splitlines()
     i, raw = int(body.get("line", -1)), body.get("raw")
     if not (queue_bounds(lines) <= i < len(lines)) or lines[i] != raw:
         raise ValueError("Inbox changed since you loaded it; refresh and try again")
     if action == "delete":
-        j = i + 1
-        while j < len(lines) and lines[j].startswith((" ", "\t")) and lines[j].strip():
-            j += 1
-        del lines[i:j]
+        del lines[i:block_end(lines, i)]
+    elif action == "edit":
+        m = TASK_RE.match(lines[i])
+        state_, typ, prio, _ = m.groups()
+        title, summary = one_line(body.get("title")), one_line(body.get("summary"))
+        if not title:
+            raise ValueError("title is required")
+        new = f"- [{state_}] " + (f"[{typ}] " if typ else "") + f"({prio or 'normal'}) {title}" + (f" — {summary}" if summary else "")
+        extra = [f"  {one_line(x)}" for x in str(body.get("details") or "").splitlines() if x.strip()]
+        lines[i:block_end(lines, i)] = [new, *extra]
+    elif action == "move":
+        # Swap this task (with its detail lines) and another task, given by "with" + "withRaw".
+        j = int(body.get("with", -1))
+        if not (queue_bounds(lines) <= j < len(lines)) or lines[j] != body.get("withRaw") or not TASK_RE.match(lines[j]) or j == i:
+            raise ValueError("Inbox changed since you loaded it; refresh and try again")
+        a, b = sorted((i, j))
+        blk_a, blk_b = lines[a:block_end(lines, a)], lines[b:block_end(lines, b)]
+        lines[a:block_end(lines, b)] = blk_b + lines[a + len(blk_a):b] + blk_a
     elif action == "reset":
         lines[i] = lines[i].replace("- [~]", "- [ ]", 1)
     elif action == "priority":
@@ -200,6 +228,16 @@ def edit_task(body, action):
         state_, typ, _, text = m.groups()
         lines[i] = f"- [{state_}] " + (f"[{typ}] " if typ else "") + f"({prio}) {text}"
     write(INBOX, "\n".join(lines) + "\n")
+
+
+def dismiss_done(raw):
+    """Mark a blocked entry in done.md as dismissed ([-]); the line itself stays as history."""
+    lines = read(DONE).splitlines()
+    if raw not in lines or not re.match(r"^- \[(x|!)\]", raw):
+        raise ValueError("History changed since you loaded it; refresh and try again")
+    k = lines.index(raw)
+    lines[k] = "- [-]" + raw[5:]
+    write(DONE, "\n".join(lines) + "\n")
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -250,8 +288,10 @@ class Handler(BaseHTTPRequestHandler):
             route = urlparse(self.path).path
             if route == "/api/tasks":
                 add_task(body)
-            elif route in ("/api/tasks/delete", "/api/tasks/reset", "/api/tasks/priority"):
+            elif route in ("/api/tasks/delete", "/api/tasks/reset", "/api/tasks/priority", "/api/tasks/edit", "/api/tasks/move"):
                 edit_task(body, route.rsplit("/", 1)[1])
+            elif route == "/api/done/dismiss":
+                dismiss_done(body.get("raw", ""))
             elif route == "/api/recurring":
                 write(RECURRING, str(body.get("text", "")).replace("\r\n", "\n"))
             elif route == "/api/open":
@@ -281,6 +321,9 @@ def seed_task_files():
 if __name__ == "__main__":
     seed_task_files()
     url = f"http://127.0.0.1:{PORT}"
+    # Windows lets a second process bind the same port when SO_REUSEADDR is on (Python's default here),
+    # which left stale copies serving old code. Refuse instead, so "already running" is detected.
+    ThreadingHTTPServer.allow_reuse_address = False
     try:
         srv = ThreadingHTTPServer(("127.0.0.1", PORT), Handler)
     except OSError:

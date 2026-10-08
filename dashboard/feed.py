@@ -16,7 +16,8 @@ MAX_AGE_H = 36
 MAX_EVENTS = 400
 LIVE_SECONDS = 120
 
-RUN_NAMES = {"ai-morning-brief": "Morning brief", "ai-queue-worker": "Queue worker", "ai-evening-digest": "Evening digest"}
+RUN_NAMES = {"ai-brief": "Morning brief", "ai-queue": "Queue worker", "ai-evening-digest": "Evening digest",
+             "ai-morning-brief": "Morning brief (old)", "ai-queue-worker": "Queue worker (old)"}
 HIDE_TOOLS = {"ToolSearch", "TodoWrite", "TaskOutput", "Monitor"}
 
 _cache = {}  # path -> {"mtime", "size", "offset", "events", "meta"}

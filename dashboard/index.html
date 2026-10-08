@@ -4,100 +4,157 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>AI Workflow</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%234f46e5'/><path d='M9 17l4 4 10-10' stroke='white' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%2307101f'/><rect x='1' y='1' width='30' height='30' rx='7' fill='none' stroke='%2346e3ff' stroke-width='2'/><path d='M9 17l4 4 10-10' stroke='%2346e3ff' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 <style>
+/* Futuristic control-room skin: one committed dark theme. Glass panels over a faint grid,
+   cyan as the live/interactive signal, violet as its partner, technical face for headings and numbers. */
 :root{
-  --bg:#f6f7f9; --surface:#fff; --surface-2:#f1f3f6; --border:#e3e6eb; --text:#16181d; --muted:#6b7280;
-  --accent:#4f46e5; --accent-soft:#eef0ff; --danger:#dc2626; --danger-soft:#fdecec; --ok:#15803d; --ok-soft:#e8f6ed; --warn:#b45309; --warn-soft:#fdf3e1;
-  --research:#2563eb; --code:#7c3aed; --brief:#d97706; --docs:#059669; --other:#6b7280;
-  --shadow:0 1px 2px rgba(16,24,40,.05); --radius:12px;
-}
-@media (prefers-color-scheme: dark){
-  :root{
-    --bg:#0f1115; --surface:#171a21; --surface-2:#1e222b; --border:#2a2f3a; --text:#e7e9ee; --muted:#9aa1ad;
-    --accent:#8b8cf8; --accent-soft:#25264a; --danger:#f87171; --danger-soft:#3a1d1f; --ok:#4ade80; --ok-soft:#173023; --warn:#fbbf24; --warn-soft:#3a2d12;
-    --research:#60a5fa; --code:#a78bfa; --brief:#fbbf24; --docs:#34d399; --shadow:none;
-  }
+  color-scheme:dark;
+  --bg:#060912; --surface:rgba(14,20,36,.78); --surface-2:rgba(32,44,72,.55); --border:rgba(110,160,255,.14); --border-hi:rgba(70,227,255,.45);
+  --text:#e4ebff; --muted:#8792b0;
+  --accent:#46e3ff; --accent-2:#8f7bff; --accent-ink:#04111c; --accent-soft:rgba(70,227,255,.10);
+  --danger:#ff5d7a; --danger-soft:rgba(255,93,122,.12); --ok:#38f2a6; --ok-soft:rgba(56,242,166,.12); --warn:#ffc65c; --warn-soft:rgba(255,198,92,.12);
+  --research:#5ea8ff; --code:#b08cff; --brief:#ffc65c; --docs:#38f2a6; --other:#8792b0;
+  --display:"Chakra Petch", "Segoe UI", system-ui, sans-serif;
+  --mono:"JetBrains Mono", ui-monospace, Consolas, monospace;
+  --glow:0 0 0 1px rgba(70,227,255,.35), 0 0 18px rgba(70,227,255,.18);
+  --radius:14px; --side:240px;
 }
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--text);font:14px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:
+  radial-gradient(1100px 600px at 85% -10%, rgba(143,123,255,.16), transparent 60%),
+  radial-gradient(900px 500px at -10% 110%, rgba(70,227,255,.10), transparent 60%),
+  var(--bg);background-attachment:fixed}
+body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;
+  background-image:linear-gradient(rgba(110,160,255,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(110,160,255,.05) 1px,transparent 1px);
+  background-size:36px 36px;mask-image:radial-gradient(ellipse at 60% 30%,#000 30%,transparent 80%)}
+.app{position:relative;z-index:1}
 button,input,select,textarea{font:inherit;color:inherit}
 a{color:var(--accent)}
-.wrap{max-width:1280px;margin:0 auto;padding:20px 16px 48px}
-header{display:flex;align-items:center;gap:12px;margin-bottom:18px;flex-wrap:wrap}
-.logo{width:34px;height:34px;border-radius:9px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:700}
-h1{font-size:19px;margin:0;font-weight:650;letter-spacing:-.01em}
-.sub{color:var(--muted);font-size:12.5px}
+svg.i{width:18px;height:18px;flex:none;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .spacer{flex:1}
+.hidden{display:none!important}
+.hint{color:var(--muted);font-size:12.5px}
+
+/* ---------- shell: sidebar + main ---------- */
+.app{display:grid;grid-template-columns:var(--side) minmax(0,1fr);min-height:100vh}
+.side{position:sticky;top:0;height:100vh;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:16px 12px;gap:4px;overflow-y:auto}
+.brand{display:flex;align-items:center;gap:10px;padding:4px 8px 16px;font-weight:650;font-size:15.5px;color:var(--text);text-decoration:none}
+.logo{width:30px;height:30px;border-radius:8px;background:var(--accent);display:grid;place-items:center;color:#fff;font-weight:700;font-size:15px}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav-label{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:14px 10px 6px}
+.nav a,.nav button{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;color:var(--muted);text-decoration:none;border:0;background:none;cursor:pointer;text-align:left;width:100%}
+.nav a:hover,.nav button:hover{background:var(--surface-2);color:var(--text)}
+.nav a.active{background:var(--accent-soft);color:var(--text);font-weight:560}
+.nav a.active svg{color:var(--accent)}
+.badge{margin-left:auto;font-size:11.5px;font-weight:600;min-width:22px;text-align:center;padding:1px 7px;border-radius:999px;background:var(--surface-2);color:var(--muted);font-variant-numeric:tabular-nums}
+.badge.alert{background:var(--danger-soft);color:var(--danger)}
+.badge:empty{display:none}
+.side-foot{margin-top:auto;border-top:1px solid var(--border);padding:12px 8px 0;display:flex;flex-direction:column;gap:4px}
+.side-status{display:flex;align-items:center;gap:9px;font-weight:560;font-size:13px}
+.side-status a{color:inherit;text-decoration:none}
+
+.main{padding:22px 32px 56px;max-width:1240px;width:100%;min-width:0}
+.topbar{display:flex;align-items:center;gap:10px;margin-bottom:20px;flex-wrap:wrap}
+.topbar h1{font-size:21px;margin:0;font-weight:650;letter-spacing:-.01em}
+.topbar .desc{color:var(--muted);font-size:13px;margin-top:1px}
+.iconbtn{width:36px;height:36px;display:inline-grid;place-items:center;border-radius:9px;border:1px solid var(--border);background:var(--surface);color:var(--muted);cursor:pointer;text-decoration:none}
+.iconbtn:hover{color:var(--text);background:var(--surface-2)}
+.iconbtn.active{color:var(--accent);border-color:var(--accent);background:var(--accent-soft)}
+#menuBtn{display:none}
+.scrim-nav{display:none}
+
+@media (max-width:900px){
+  .app{grid-template-columns:1fr}
+  .side{position:fixed;left:0;top:0;bottom:0;width:260px;z-index:30;transform:translateX(-100%);transition:transform .2s ease;box-shadow:0 0 30px rgba(0,0,0,.2)}
+  body.nav-open .side{transform:none}
+  body.nav-open .scrim-nav{display:block;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:29}
+  #menuBtn{display:inline-grid}
+  .main{padding:16px 16px 48px}
+}
+
+/* ---------- building blocks ---------- */
 .btn{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:7px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
 .btn:hover{background:var(--surface-2)}
+a.btn{color:inherit;text-decoration:none}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
-.btn.primary:hover{filter:brightness(1.07)}
+.btn.primary:hover{filter:brightness(1.07);background:var(--accent)}
 .btn.sm{padding:3px 9px;font-size:12.5px}
 .btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}
 .btn.ghost:hover{background:var(--surface-2);color:var(--text)}
-.btn:disabled{opacity:.55;cursor:default}
+.btn:disabled{opacity:.5;cursor:default}
 
-.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
-.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
-.stat .n{font-size:26px;font-weight:650;line-height:1.1;font-variant-numeric:tabular-nums}
-.stat .l{color:var(--muted);font-size:12.5px;margin-top:2px}
-.stat.alert .n{color:var(--danger)}
-
-.grid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px;align-items:start}
 .col{display:flex;flex-direction:column;gap:16px;min-width:0}
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow);min-width:0}
+.grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:16px;align-items:start}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);min-width:0}
 .card-h{display:flex;align-items:center;gap:8px;padding:13px 16px;border-bottom:1px solid var(--border)}
 .card-h h2{font-size:14px;margin:0;font-weight:620}
 .card-h .count{color:var(--muted);font-size:12.5px}
+.card-h a.more{font-size:12.5px;text-decoration:none}
 .card-b{padding:14px 16px}
-.full{margin-top:16px}
+
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px 16px;color:inherit;text-decoration:none;transition:border-color .15s}
+.stat:hover{border-color:var(--accent)}
+.stat:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.stat .n{font-size:26px;font-weight:650;line-height:1.1;font-variant-numeric:tabular-nums}
+.stat .l{color:var(--muted);font-size:12.5px;margin-top:2px;display:flex;justify-content:space-between}
+.stat .go{opacity:0;transition:opacity .15s;color:var(--accent)}
+.stat:hover .go{opacity:1}
+.stat.alert .n{color:var(--danger)}
 
 /* form */
 .seg{display:flex;gap:6px;flex-wrap:wrap}
 .seg button{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:5px 12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px}
-.seg button[aria-pressed=true]{border-color:var(--c,var(--accent));background:color-mix(in srgb,var(--c,var(--accent)) 12%,var(--surface));color:var(--text);font-weight:560}
+.seg button[aria-pressed=true]{border-color:var(--c,var(--accent));background:color-mix(in srgb,var(--c,var(--accent)) 12%,var(--surface));font-weight:560}
 .dot{width:8px;height:8px;border-radius:50%;background:var(--c,var(--other));flex:none}
 .row{display:grid;grid-template-columns:1fr 150px;gap:10px;margin-top:10px}
 label.f{display:block;font-size:12px;color:var(--muted);margin:10px 0 4px}
 input[type=text],select,textarea{width:100%;border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:8px 10px;outline:none}
 input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
 textarea{resize:vertical;min-height:64px}
-.form-foot{display:flex;align-items:center;gap:10px;margin-top:12px}
-.hint{color:var(--muted);font-size:12.5px}
-.hidden{display:none!important}
+.form-foot{display:flex;align-items:center;gap:10px;margin-top:12px;flex-wrap:wrap}
 
 /* lists */
 .list{list-style:none;margin:0;padding:0}
-.item{display:flex;gap:10px;align-items:flex-start;padding:11px 16px;border-top:1px solid var(--border)}
+.item{display:flex;gap:10px;align-items:flex-start;padding:12px 16px;border-top:1px solid var(--border)}
 .item:first-child{border-top:0}
-.item .main{flex:1;min-width:0}
+.item .main{flex:1;min-width:0;padding:0;max-width:none}
 .item .t{font-weight:540;overflow-wrap:anywhere}
 .item .d{color:var(--muted);font-size:12.5px;white-space:pre-wrap;overflow-wrap:anywhere;margin-top:2px}
-.item .acts{display:flex;gap:4px;flex:none;opacity:.25;transition:opacity .15s}
-.item:hover .acts,.item:focus-within .acts{opacity:1}
-@media (hover:none){.item .acts{opacity:1}}
-.tag{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:560;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--c,var(--other)) 13%,transparent);color:var(--c,var(--other));text-transform:capitalize;flex:none}
+.item .acts{display:flex;gap:4px;flex:none;flex-wrap:wrap;justify-content:flex-end}
+.tag{display:inline-flex;align-items:center;font-size:11.5px;font-weight:560;padding:1px 8px;border-radius:999px;background:color-mix(in srgb,var(--c,var(--other)) 13%,transparent);color:var(--c,var(--other));text-transform:capitalize;flex:none}
 .pill{font-size:11.5px;padding:1px 8px;border-radius:999px;background:var(--surface-2);color:var(--muted);flex:none}
-.pill.high{background:var(--danger-soft);color:var(--danger)}
+.pill.high,.pill.blocked{background:var(--danger-soft);color:var(--danger)}
 .pill.running{background:var(--accent-soft);color:var(--accent)}
 .pill.ok{background:var(--ok-soft);color:var(--ok)}
-.pill.blocked{background:var(--danger-soft);color:var(--danger)}
 .meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:3px}
 .empty{padding:22px 16px;color:var(--muted);text-align:center}
 .linky{background:none;border:0;padding:0;color:var(--accent);cursor:pointer;text-align:left;overflow-wrap:anywhere}
 .linky:hover{text-decoration:underline}
+.pos{width:26px;height:26px;border-radius:50%;background:var(--surface-2);display:grid;place-items:center;font-size:12px;font-weight:600;color:var(--muted);flex:none}
+.edit-form{display:grid;gap:8px;width:100%}
+.edit-form .row2{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.reason{margin-top:6px;padding:8px 10px;border-radius:8px;background:var(--danger-soft);font-size:13px}
+.reason b{color:var(--danger)}
+.filters{display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center}
+.chip{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:4px 12px;cursor:pointer;font-size:13px}
+.chip[aria-pressed=true]{border-color:var(--accent);background:var(--accent-soft);font-weight:560}
+.help{padding:12px 16px;color:var(--muted);font-size:13px;border-top:1px solid var(--border)}
 
 /* schedule */
-.sched{display:flex;align-items:center;gap:10px;padding:10px 16px;border-top:1px solid var(--border)}
+.sched{display:flex;align-items:center;gap:10px;padding:11px 16px;border-top:1px solid var(--border)}
 .sched:first-child{border-top:0}
 .sched .when{margin-left:auto;text-align:right}
 .sched .when b{display:block;font-weight:560;font-variant-numeric:tabular-nums}
 .sched .when span{color:var(--muted);font-size:12px}
 
-/* tabs */
+/* tabs + tables */
 .tabs{display:flex;gap:2px;padding:6px 8px 0;border-bottom:1px solid var(--border);overflow-x:auto}
 .tabs button{border:0;background:none;padding:9px 12px;cursor:pointer;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
 .tabs button[aria-selected=true]{color:var(--text);border-bottom-color:var(--accent);font-weight:560}
@@ -111,31 +168,34 @@ td.nowrap,th.nowrap{white-space:nowrap}
 tr.click{cursor:pointer}
 tr.click:hover td{background:var(--surface-2)}
 
-/* drawer */
-.scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:10}
-.drawer{position:fixed;top:0;right:0;bottom:0;width:min(860px,100%);background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:transform .22s ease;z-index:11;display:flex;flex-direction:column}
-.open .scrim{opacity:1;pointer-events:auto}
-.open .drawer{transform:none}
-.drawer-h{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border)}
-.drawer-h .name{font-weight:560;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
-.drawer-b{overflow:auto;padding:8px 28px 40px;flex:1}
-.md{line-height:1.65;overflow-wrap:anywhere}
-.md h1{font-size:22px;margin:18px 0 8px}.md h2{font-size:17px;margin:22px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)}.md h3{font-size:15px;margin:16px 0 4px}
-.md table{display:block;overflow-x:auto;margin:10px 0}.md td,.md th{border:1px solid var(--border);padding:6px 10px}.md th{color:var(--text);font-weight:600;background:var(--surface-2)}
-.md code{background:var(--surface-2);padding:1px 5px;border-radius:5px;font-size:12.5px}
-.md pre{background:var(--surface-2);padding:12px;border-radius:8px;overflow:auto}.md pre code{background:none;padding:0}
-.md blockquote{margin:8px 0;padding:2px 14px;border-left:3px solid var(--border);color:var(--muted)}
-pre.raw{white-space:pre-wrap;font-size:12.5px}
-
-.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:9px;transition:transform .2s;z-index:20;max-width:calc(100% - 32px)}
-.toast.show{transform:translateX(-50%) translateY(0)}
-.toast.err{background:var(--danger);color:#fff}
-.banner{background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+/* analytics */
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px}
+.kpi{border:1px solid var(--border);border-radius:10px;padding:12px 14px}
+.kpi .n{font-size:24px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.15}
+.kpi .l{color:var(--muted);font-size:12.5px}
+.charts{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;padding:0 16px 16px}
+.chart{border:1px solid var(--border);border-radius:10px;padding:14px 14px 10px;min-width:0}
+.chart h3{font-size:13px;margin:0 0 2px;font-weight:600}
+.chart .sub{color:var(--muted);font-size:12px;margin-bottom:12px}
+.vbars{display:flex;align-items:flex-end;gap:2px;height:150px;border-bottom:1px solid var(--border);position:relative}
+.vbars .b{flex:1;height:100%;display:flex;align-items:flex-end;cursor:default}
+.vbars .b span{display:block;width:100%;background:var(--accent);border-radius:4px 4px 0 0;min-height:0}
+.vbars .b:hover span{filter:brightness(1.15)}
+.vbars .gl{position:absolute;left:0;right:0;border-top:1px dashed var(--border);font-size:11px;color:var(--muted);pointer-events:none}
+.vbars .gl i{position:absolute;right:0;top:-16px;font-style:normal}
+.xlab{display:flex;gap:2px;margin-top:5px}
+.xlab span{flex:1;text-align:center;font-size:10.5px;color:var(--muted);white-space:nowrap;overflow:visible}
+.hbars{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px 10px;align-items:center}
+.hbars .lab{font-size:13px}
+.hbars .track{height:10px;border-radius:0 4px 4px 0;overflow:hidden}
+.hbars .track span{display:block;height:100%;background:var(--accent);border-radius:0 4px 4px 0}
+.hbars .val{font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums;text-align:right}
+#tip{position:fixed;pointer-events:none;background:var(--text);color:var(--bg);font-size:12px;padding:5px 9px;border-radius:7px;z-index:50;white-space:nowrap;transform:translate(-50%,calc(-100% - 8px))}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,1fr)}.charts{grid-template-columns:1fr}}
 
 /* activity */
-.activity{margin-bottom:16px}
 .act-head{display:flex;align-items:center;gap:12px;padding:14px 16px 10px;flex-wrap:wrap}
-.pulse{width:12px;height:12px;border-radius:50%;background:var(--muted);flex:none;position:relative}
+.pulse{width:11px;height:11px;border-radius:50%;background:var(--muted);flex:none;position:relative}
 .pulse.working{background:var(--ok)}
 .pulse.working::after{content:"";position:absolute;inset:-5px;border-radius:50%;border:2px solid var(--ok);animation:ping 1.6s ease-out infinite}
 .pulse.stale{background:var(--warn)}
@@ -150,7 +210,7 @@ pre.raw{white-space:pre-wrap;font-size:12.5px}
 .seg-queue{background:color-mix(in srgb,var(--muted) 35%,transparent)}
 .striped{background-image:linear-gradient(45deg,rgba(255,255,255,.28) 25%,transparent 25%,transparent 50%,rgba(255,255,255,.28) 50%,rgba(255,255,255,.28) 75%,transparent 75%);background-size:14px 14px;animation:stripes .9s linear infinite}
 @keyframes stripes{to{background-position:14px 0}}
-.overall-wrap{padding:0 16px 12px}
+.overall-wrap{padding:0 16px 14px}
 .legend{display:flex;gap:14px;margin-top:8px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
 .legend i{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 .runrow{padding:12px 16px;border-top:1px solid var(--border)}
@@ -158,12 +218,12 @@ pre.raw{white-space:pre-wrap;font-size:12.5px}
 .runrow .top .t{font-weight:540;flex:1;min-width:0;overflow-wrap:anywhere}
 .steps{display:flex;gap:3px;height:7px}
 .steps span{flex:1;border-radius:3px;background:var(--surface-2)}
-.steps span.on{background:var(--c,var(--accent))}
-.steps span.cur{background:var(--c,var(--accent))}
+.steps span.on,.steps span.cur{background:var(--c,var(--accent))}
 .indet{height:7px;border-radius:3px;background:var(--surface-2);overflow:hidden;position:relative}
 .indet::after{content:"";position:absolute;inset:0;width:35%;background:var(--c,var(--accent));border-radius:3px;animation:slide 1.4s ease-in-out infinite}
 @keyframes slide{0%{left:-35%}100%{left:100%}}
 .runrow .sub{display:flex;justify-content:space-between;gap:10px;margin-top:6px;font-size:12.5px;color:var(--muted)}
+
 /* live feed */
 .livebadge{font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;background:var(--surface-2);color:var(--muted);display:inline-flex;align-items:center;gap:6px}
 .livebadge.on{background:var(--ok-soft);color:var(--ok)}
@@ -171,7 +231,7 @@ pre.raw{white-space:pre-wrap;font-size:12.5px}
 @keyframes blink{50%{opacity:.25}}
 .card-h select{width:auto;max-width:260px;padding:4px 8px;font-size:13px}
 .follow{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted);cursor:pointer;white-space:nowrap}
-.feed{max-height:520px;overflow-y:auto;padding:6px 0 10px;scroll-behavior:smooth}
+.feed{max-height:560px;overflow-y:auto;padding:6px 0 10px;scroll-behavior:smooth}
 .ev{display:grid;grid-template-columns:62px 22px minmax(0,1fr);gap:8px;padding:4px 16px;align-items:start}
 .ev .tm{color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums;padding-top:2px;text-align:right}
 .ev .ic{font-size:13px;line-height:20px;text-align:center}
@@ -192,154 +252,338 @@ pre.raw{white-space:pre-wrap;font-size:12.5px}
 .typing i{width:6px;height:6px;border-radius:50%;background:var(--accent);animation:bounce 1.2s infinite}
 .typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
 @keyframes bounce{0%,60%,100%{transform:translateY(0);opacity:.4}30%{transform:translateY(-4px);opacity:1}}
-@media (max-width:640px){.ev{grid-template-columns:44px 20px minmax(0,1fr);padding:4px 12px}.ev.sub{margin-left:20px;grid-template-columns:40px 20px minmax(0,1fr)}.actor{margin-left:36px}.typing{padding-left:48px}}
 
-@media (prefers-reduced-motion:reduce){.livebadge.on::before,.typing i{animation:none}.striped,.indet::after,.pulse.working::after{animation:none}}
+/* drawer viewer */
+.scrim{position:fixed;inset:0;background:rgba(0,0,0,.35);opacity:0;pointer-events:none;transition:opacity .2s;z-index:40}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(860px,100%);background:var(--surface);border-left:1px solid var(--border);transform:translateX(100%);transition:transform .22s ease;z-index:41;display:flex;flex-direction:column}
+.open .scrim{opacity:1;pointer-events:auto}
+.open .drawer{transform:none}
+.drawer-h{display:flex;align-items:center;gap:8px;padding:12px 16px;border-bottom:1px solid var(--border)}
+.drawer-h .name{font-weight:560;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
+.drawer-b{overflow:auto;padding:8px 28px 40px;flex:1}
+.md{line-height:1.65;overflow-wrap:anywhere}
+.md h1{font-size:22px;margin:18px 0 8px}.md h2{font-size:17px;margin:22px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)}.md h3{font-size:15px;margin:16px 0 4px}
+.md table{display:block;overflow-x:auto;margin:10px 0}.md td,.md th{border:1px solid var(--border);padding:6px 10px}.md th{font-weight:600;background:var(--surface-2)}
+.md code{background:var(--surface-2);padding:1px 5px;border-radius:5px;font-size:12.5px}
+.md pre{background:var(--surface-2);padding:12px;border-radius:8px;overflow:auto}.md pre code{background:none;padding:0}
+.md blockquote{margin:8px 0;padding:2px 14px;border-left:3px solid var(--border);color:var(--muted)}
+pre.raw{white-space:pre-wrap;font-size:12.5px}
 
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:9px 16px;border-radius:9px;transition:transform .2s;z-index:60;max-width:calc(100% - 32px)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.err{background:var(--danger);color:#fff}
+.banner{background:var(--danger-soft);color:var(--danger);border-radius:10px;padding:10px 14px;margin-bottom:14px}
+
+@media (prefers-reduced-motion:reduce){.livebadge.on::before,.typing i,.striped,.indet::after,.pulse.working::after{animation:none}}
 @media (max-width:980px){.grid{grid-template-columns:1fr}}
-@media (max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}.row{grid-template-columns:1fr}.drawer-b{padding:8px 16px 40px}.hide-sm{display:none}td,th{padding:9px 12px}}
+@media (max-width:640px){
+  .stats{grid-template-columns:repeat(2,1fr)}.row{grid-template-columns:1fr}.drawer-b{padding:8px 16px 40px}.hide-sm{display:none}td,th{padding:9px 12px}
+  .ev{grid-template-columns:44px 20px minmax(0,1fr);padding:4px 12px}.ev.sub{margin-left:20px;grid-template-columns:40px 20px minmax(0,1fr)}.actor{margin-left:36px}.typing{padding-left:48px}
+  .topbar .newbtn span{display:none}
+  .topbar{flex-wrap:nowrap}.topbar .desc{display:none}.topbar h1{font-size:19px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+}
+
+/* ================= futuristic skin (visual only) ================= */
+::selection{background:rgba(70,227,255,.3)}
+a{color:var(--accent)}
+h1,h2,h3,.brand,.act-title,.stat .n,.kpi .n,.count .v{font-family:var(--display)}
+
+/* glass panels */
+.card,.stat,.kpi,.chart{background:var(--surface);border:1px solid var(--border);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.04),0 10px 30px rgba(0,0,0,.25);
+  -webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+.card-h{border-bottom-color:var(--border)}
+.card-h h2{font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.14em;color:#c9d4f5}
+.card-h h2::before{content:"";display:inline-block;width:6px;height:6px;margin-right:9px;vertical-align:2px;background:var(--accent);box-shadow:0 0 8px var(--accent);transform:rotate(45deg)}
+.item,.sched,.runrow,td,th,.help,.toolbar,.filters,.tabs{border-color:var(--border)!important}
+
+/* sidebar */
+.side{background:rgba(7,11,22,.82);border-right:1px solid var(--border);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.brand{font-size:16px;font-weight:700;letter-spacing:.06em;text-transform:uppercase}
+.logo{background:#07101f;color:var(--accent);border:1.5px solid var(--accent);box-shadow:var(--glow);border-radius:9px}
+.nav-label{font-family:var(--mono);font-size:10.5px;letter-spacing:.18em;color:#5f6a88}
+.nav a,.nav button{border:1px solid transparent}
+.nav a:hover,.nav button:hover{background:rgba(110,160,255,.06)}
+.nav a.active{background:linear-gradient(90deg,rgba(70,227,255,.14),rgba(143,123,255,.06));border-color:rgba(70,227,255,.28);color:#fff}
+.nav a.active svg{color:var(--accent);filter:drop-shadow(0 0 6px rgba(70,227,255,.7))}
+.badge{font-family:var(--mono);background:rgba(110,160,255,.1);color:#b8c4e6}
+.badge.alert{background:var(--danger-soft);color:var(--danger);box-shadow:0 0 10px rgba(255,93,122,.25)}
+.side-foot{border-top-color:var(--border);font-family:var(--mono);font-size:11.5px}
+.side-status{font-family:var(--display);font-size:13.5px;letter-spacing:.04em}
+
+/* top bar */
+.topbar h1{font-size:24px;font-weight:700;letter-spacing:.02em}
+.topbar .desc{font-family:var(--mono);font-size:11.5px;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+.iconbtn{background:var(--surface);border-color:var(--border)}
+.iconbtn:hover{color:var(--accent);border-color:var(--border-hi);box-shadow:var(--glow);background:var(--surface)}
+.iconbtn.active{color:var(--accent);border-color:var(--border-hi);background:var(--accent-soft);box-shadow:var(--glow)}
+
+/* buttons + inputs */
+.btn{background:rgba(20,28,48,.8);border-color:var(--border)}
+.btn:hover{background:rgba(32,44,72,.9);border-color:var(--border-hi)}
+.btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent-2));border-color:transparent;color:var(--accent-ink);font-weight:650;box-shadow:0 0 18px rgba(70,227,255,.25)}
+.btn.primary:hover{background:linear-gradient(135deg,var(--accent),var(--accent-2));filter:brightness(1.1);box-shadow:0 0 26px rgba(70,227,255,.4)}
+.btn.ghost{background:transparent;border-color:transparent}
+input[type=text],select,textarea{background:rgba(6,10,20,.7);border-color:var(--border);color:var(--text)}
+input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(70,227,255,.15),0 0 16px rgba(70,227,255,.15)}
+select option{background:#0c1324}
+.seg button,.chip{background:rgba(20,28,48,.8);border-color:var(--border)}
+.seg button[aria-pressed=true]{box-shadow:0 0 12px color-mix(in srgb,var(--c,var(--accent)) 35%,transparent)}
+.chip[aria-pressed=true]{background:var(--accent-soft);border-color:var(--border-hi);color:#fff}
+
+/* stat tiles: HUD corner brackets + glowing numerals */
+.stat,.kpi{position:relative;overflow:hidden}
+.stat::before,.stat::after,.kpi::before{content:"";position:absolute;width:12px;height:12px;border-color:var(--accent);opacity:.55;pointer-events:none}
+.stat::before,.kpi::before{top:7px;left:7px;border-top:1.5px solid;border-left:1.5px solid}
+.stat::after{bottom:7px;right:7px;border-bottom:1.5px solid;border-right:1.5px solid}
+.stat .n{font-size:32px;font-weight:600;letter-spacing:.02em;color:#fff;text-shadow:0 0 18px rgba(70,227,255,.35)}
+.stat .l{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase}
+.stat:hover{border-color:var(--border-hi);box-shadow:var(--glow)}
+.stat.alert .n{color:var(--danger);text-shadow:0 0 18px rgba(255,93,122,.45)}
+.kpi .n{color:#fff;text-shadow:0 0 14px rgba(70,227,255,.3)}
+.kpi .l,.hint,.count{font-family:inherit}
+
+/* activity + progress */
+.act-title{font-size:16px;letter-spacing:.04em}
+.pulse.working{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+.pulse.stale{box-shadow:0 0 10px var(--warn)}
+.bar{height:8px;background:rgba(110,160,255,.08)}
+.seg-done{background:var(--ok);box-shadow:0 0 10px rgba(56,242,166,.5)}
+.seg-run{background:linear-gradient(90deg,var(--accent),var(--accent-2));box-shadow:0 0 10px rgba(70,227,255,.5)}
+.seg-queue{background:rgba(135,146,176,.28)}
+.steps span{background:rgba(110,160,255,.1)}
+.steps span.on,.steps span.cur{box-shadow:0 0 8px color-mix(in srgb,var(--c,var(--accent)) 60%,transparent)}
+.legend,.act-count,.runrow .sub,.sched .when span,.ev .tm,.xlab span,.hbars .val{font-family:var(--mono)}
+.act-count b{font-family:var(--display);color:#fff}
+
+/* tags + pills */
+.tag{border:1px solid color-mix(in srgb,var(--c,var(--other)) 40%,transparent);background:color-mix(in srgb,var(--c,var(--other)) 12%,transparent)}
+.pill{font-family:var(--mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;background:rgba(110,160,255,.08)}
+.pill.running{background:var(--accent-soft);color:var(--accent)}
+.pos{font-family:var(--mono);background:rgba(110,160,255,.08);border:1px solid var(--border);color:var(--accent)}
+
+/* tabs + tables */
+.tabs button{font-family:var(--mono);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
+.tabs button[aria-selected=true]{color:#fff;border-bottom-color:var(--accent);text-shadow:0 0 10px rgba(70,227,255,.5)}
+th{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:#6f7a99}
+tr.click:hover td,.row.tap:active{background:rgba(70,227,255,.05)}
+
+/* schedule */
+.sched .when b{font-family:var(--display);color:#fff}
+
+/* charts */
+.vbars{border-bottom-color:var(--border)}
+.vbars .b span{background:linear-gradient(180deg,var(--accent),rgba(143,123,255,.65));box-shadow:0 0 12px rgba(70,227,255,.3)}
+.hbars .track{background:rgba(110,160,255,.07)}
+.hbars .track span{background:linear-gradient(90deg,rgba(143,123,255,.75),var(--accent));box-shadow:0 0 10px rgba(70,227,255,.3)}
+.vbars .gl{border-top-color:rgba(110,160,255,.12)}
+#tip{background:rgba(7,12,24,.95);color:var(--text);border:1px solid var(--border-hi);box-shadow:var(--glow);font-family:var(--mono)}
+
+/* live feed */
+.livebadge{font-family:var(--mono);letter-spacing:.1em;text-transform:uppercase;background:rgba(110,160,255,.08)}
+.livebadge.on{box-shadow:0 0 12px rgba(56,242,166,.3)}
+.ev.say .ic{background:linear-gradient(135deg,var(--accent),var(--accent-2));color:var(--accent-ink);box-shadow:0 0 10px rgba(70,227,255,.4)}
+.ev.say .tx{background:rgba(20,30,54,.7);border:1px solid var(--border)}
+.actor{font-family:var(--mono);letter-spacing:.14em}
+
+/* viewer, toast, banner */
+.drawer{background:rgba(8,12,24,.97);border-left-color:var(--border-hi);box-shadow:-20px 0 60px rgba(0,0,0,.5)}
+.drawer-h{border-bottom-color:var(--border)}
+.md th{background:rgba(110,160,255,.08)}.md td,.md th{border-color:var(--border)}
+.md code,.md pre{background:rgba(110,160,255,.08)}
+.toast{background:rgba(8,14,28,.96);color:var(--text);border:1px solid var(--border-hi);box-shadow:var(--glow)}
+.reason{border:1px solid rgba(255,93,122,.25)}
+@media (prefers-reduced-motion:reduce){.seg-run,.seg-done{box-shadow:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <header>
-    <div class="logo">✓</div>
-    <div>
-      <h1>AI Workflow</h1>
-      <div class="sub" id="updated">Loading…</div>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/></symbol>
+  <symbol id="i-queue" viewBox="0 0 24 24"><path d="M8 6h12M8 12h12M8 18h12M4 6h.01M4 12h.01M4 18h.01"/></symbol>
+  <symbol id="i-run" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 8.5v7l5.5-3.5z"/></symbol>
+  <symbol id="i-done" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.7 2.7L16 10"/></symbol>
+  <symbol id="i-block" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7.5v5.5M12 16.5h.01"/></symbol>
+  <symbol id="i-res" viewBox="0 0 24 24"><path d="M4 19V5a1 1 0 0 1 1-1h5v16H5a1 1 0 0 1-1-1zM10 4h5v16h-5zM15 6.5l3.9-1.1a1 1 0 0 1 1.2.7l3 11.4"/><path d="M15 20l5-1.4"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
+  <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+</svg>
+
+<div class="app">
+  <aside class="side" id="side" aria-label="Main navigation">
+    <a class="brand" href="#/"><span class="logo">✓</span>AI Workflow</a>
+    <nav class="nav">
+      <a href="#/" data-route=""><svg class="i"><use href="#i-home"/></svg>Overview</a>
+      <div class="nav-label">Tasks</div>
+      <a href="#/queued" data-route="queued"><svg class="i"><use href="#i-queue"/></svg>Queued<span class="badge" id="bQueued"></span></a>
+      <a href="#/running" data-route="running"><svg class="i"><use href="#i-run"/></svg>In progress<span class="badge" id="bRunning"></span></a>
+      <a href="#/done" data-route="done"><svg class="i"><use href="#i-done"/></svg>Done<span class="badge" id="bDone"></span></a>
+      <a href="#/blocked" data-route="blocked"><svg class="i"><use href="#i-block"/></svg>Blocked<span class="badge" id="bBlocked"></span></a>
+      <div class="nav-label">Tools</div>
+      <a href="#/resources" data-route="resources"><svg class="i"><use href="#i-res"/></svg>Resources</a>
+      <button type="button" id="openFolder"><svg class="i"><use href="#i-folder"/></svg>Open folder</button>
+    </nav>
+    <div class="side-foot">
+      <div class="side-status"><span class="pulse" id="sidePulse"></span><a href="#/running" id="sideStatus">Checking…</a></div>
+      <div class="hint" id="sideNext"></div>
+      <div class="hint" id="updated"></div>
     </div>
-    <div class="spacer"></div>
-    <button class="btn" id="openFolder" title="Open the workflow folder in Explorer">📁 Folder</button>
-    <button class="btn" id="refresh" title="Refresh (R)">↻ Refresh</button>
-  </header>
+  </aside>
+  <div class="scrim-nav" id="scrimNav"></div>
 
-  <div id="banner" class="banner hidden"></div>
-
-  <section class="stats">
-    <div class="stat"><div class="n" id="sQueued">–</div><div class="l">Queued</div></div>
-    <div class="stat"><div class="n" id="sRunning">–</div><div class="l">In progress</div></div>
-    <div class="stat"><div class="n" id="sDone">–</div><div class="l">Done today</div></div>
-    <div class="stat" id="sBlockedCard"><div class="n" id="sBlocked">–</div><div class="l">Blocked (recent)</div></div>
-  </section>
-
-  <section class="card activity" aria-live="polite">
-    <div class="act-head">
-      <span class="pulse" id="pulse"></span>
+  <main class="main">
+    <div class="topbar">
+      <button class="iconbtn" id="menuBtn" aria-label="Open menu"><svg class="i"><use href="#i-menu"/></svg></button>
       <div style="min-width:0">
-        <div class="act-title" id="actTitle">Checking…</div>
-        <div class="hint" id="actSub"></div>
+        <h1 id="pageTitle">Overview</h1>
+        <div class="desc" id="pageDesc"></div>
       </div>
       <span class="spacer"></span>
-      <div class="act-count" id="actCount"></div>
+      <a class="btn primary newbtn" href="#/queued" id="newTaskBtn"><svg class="i"><use href="#i-plus"/></svg><span>New task</span></a>
+      <a class="iconbtn" href="#/resources" id="resBtn" title="Resources: outputs, history, logs, analytics" aria-label="Resources"><svg class="i"><use href="#i-res"/></svg></a>
+      <button class="iconbtn" id="refresh" title="Refresh (R)" aria-label="Refresh"><svg class="i"><use href="#i-refresh"/></svg></button>
     </div>
-    <div class="overall-wrap">
-      <div class="bar" id="overall" role="progressbar" aria-label="Today's queue progress"></div>
-      <div class="legend" id="legend"></div>
-    </div>
-    <div id="running"></div>
-  </section>
 
-  <section class="card activity">
-    <div class="card-h">
-      <h2>What Claude is doing</h2>
-      <span class="livebadge" id="liveBadge">Not running</span>
-      <span class="spacer"></span>
-      <select id="runPick" aria-label="Choose a run"></select>
-      <label class="follow"><input type="checkbox" id="follow" checked> Follow live</label>
-    </div>
-    <div class="feed" id="feed" aria-live="polite"></div>
-  </section>
+    <div id="banner" class="banner hidden"></div>
 
-  <div class="grid">
-    <div class="col">
-      <section class="card">
-        <div class="card-h"><h2>New task</h2><span class="spacer"></span><span class="hint hide-sm">Picked up by the next queue run</span></div>
-        <form class="card-b" id="taskForm" autocomplete="off">
-          <div class="seg" id="typeSeg" role="group" aria-label="Task type"></div>
-          <div class="row">
-            <div>
-              <label class="f" for="title">What should it do?</label>
-              <input type="text" id="title" required maxlength="300" placeholder="e.g. Compare Stripe vs Square fees for a small design studio">
+    <!-- Overview -->
+    <div id="home">
+      <nav class="stats" aria-label="Task sections">
+        <a class="stat" href="#/queued"><div class="n" id="sQueued">–</div><div class="l">Queued <span class="go">→</span></div></a>
+        <a class="stat" href="#/running"><div class="n" id="sRunning">–</div><div class="l">In progress <span class="go">→</span></div></a>
+        <a class="stat" href="#/done"><div class="n" id="sDone">–</div><div class="l">Done today <span class="go">→</span></div></a>
+        <a class="stat" href="#/blocked" id="sBlockedCard"><div class="n" id="sBlocked">–</div><div class="l">Blocked <span class="go">→</span></div></a>
+      </nav>
+
+      <div id="actHome"></div>
+
+      <div class="grid" style="margin-top:16px">
+        <div class="col">
+          <section class="card">
+            <div class="card-h"><h2>Needs your review</h2><span class="count" id="reviewCount"></span></div>
+            <ul class="list" id="review"></ul>
+          </section>
+          <section class="card">
+            <div class="card-h"><h2>Latest</h2><span class="spacer"></span><a class="more" href="#/resources">All outputs →</a></div>
+            <ul class="list" id="latest"></ul>
+          </section>
+        </div>
+        <section class="card">
+          <div class="card-h"><h2>Schedule</h2><span class="spacer"></span><span class="hint">Runs while the Claude app is open</span></div>
+          <div id="schedules"></div>
+          <div class="help">To run one now, ask Claude in chat ("run the queue now"), or in the <b>Claude app</b>: Code tab → <b>Scheduled</b> in its left sidebar → pick it → <b>Run now</b>.</div>
+        </section>
+      </div>
+    </div>
+
+    <!-- Task pages: queued / running / done / blocked -->
+    <div id="page" class="hidden">
+      <div class="col" id="pageBody">
+        <section class="card" id="newTaskCard" data-only="queued">
+          <div class="card-h"><h2>New task</h2><span class="spacer"></span><span class="hint hide-sm">Picked up by the next queue run</span></div>
+          <form class="card-b" id="taskForm" autocomplete="off">
+            <div class="seg" id="typeSeg" role="group" aria-label="Task type"></div>
+            <div class="row">
+              <div>
+                <label class="f" for="title">What should it do?</label>
+                <input type="text" id="title" required maxlength="300" placeholder="e.g. Compare Stripe vs Square fees for a small design studio">
+              </div>
+              <div>
+                <label class="f" for="priority">Priority</label>
+                <select id="priority"><option value="high">High</option><option value="normal" selected>Normal</option><option value="low">Low</option></select>
+              </div>
             </div>
-            <div>
-              <label class="f" for="priority">Priority</label>
-              <select id="priority"><option value="high">High</option><option value="normal" selected>Normal</option><option value="low">Low</option></select>
+            <div id="repoWrap" class="hidden">
+              <label class="f" for="repo">Repository: a local path or GitHub owner/repo</label>
+              <input type="text" id="repo" list="repoList" placeholder="C:\path\to\my-site  or  owner/repo">
+              <datalist id="repoList"></datalist>
             </div>
+            <label class="f" for="details">Details, requirements and links (optional)</label>
+            <textarea id="details" rows="3" placeholder="Anything that helps: scope, format, sources to use or avoid, acceptance criteria…"></textarea>
+            <div class="form-foot">
+              <button class="btn primary" type="submit" id="addBtn">Add to queue</button>
+              <span class="hint" id="typeHint"></span>
+            </div>
+          </form>
+        </section>
+
+        <section class="card" id="pageCard"></section>
+        <div id="actPage" data-only="running"></div>
+
+        <section class="card" id="feedCard" data-only="running">
+          <div class="card-h">
+            <h2>What Claude is doing</h2>
+            <span class="livebadge" id="liveBadge">Not running</span>
+            <span class="spacer"></span>
+            <select id="runPick" aria-label="Choose a run"></select>
+            <label class="follow"><input type="checkbox" id="follow" checked> Follow live</label>
           </div>
-          <div id="repoWrap" class="hidden">
-            <label class="f" for="repo">Repository: a local path or GitHub owner/repo</label>
-            <input type="text" id="repo" list="repoList" placeholder="C:\path\to\my-site  or  owner/repo">
-            <datalist id="repoList"></datalist>
-          </div>
-          <label class="f" for="details">Details, requirements and links (optional)</label>
-          <textarea id="details" rows="3" placeholder="Anything that helps: scope, format, sources to use or avoid, acceptance criteria…"></textarea>
-          <div class="form-foot">
-            <button class="btn primary" type="submit" id="addBtn">Add to queue</button>
-            <span class="hint" id="typeHint"></span>
-          </div>
-        </form>
-      </section>
-
-      <section class="card">
-        <div class="card-h"><h2>Queue</h2><span class="count" id="queueCount"></span></div>
-        <ul class="list" id="queue"></ul>
-      </section>
-    </div>
-
-    <div class="col">
-      <section class="card">
-        <div class="card-h"><h2>Schedule</h2><span class="spacer"></span><span class="hint">Runs while the Claude app is open</span></div>
-        <div id="schedules"></div>
-        <div class="card-b hint" style="border-top:1px solid var(--border)">To run one now: Claude sidebar → <b>Scheduled</b> → pick the task → <b>Run now</b>.</div>
-      </section>
-
-      <section class="card">
-        <div class="card-h"><h2>Needs your review</h2><span class="count" id="reviewCount"></span></div>
-        <ul class="list" id="review"></ul>
-      </section>
-
-      <section class="card">
-        <div class="card-h"><h2>Latest</h2></div>
-        <ul class="list" id="latest"></ul>
-      </section>
-    </div>
-  </div>
-
-  <section class="card full">
-    <div class="tabs" role="tablist" id="tabs">
-      <button role="tab" data-tab="outputs" aria-selected="true">Outputs</button>
-      <button role="tab" data-tab="history" aria-selected="false">History</button>
-      <button role="tab" data-tab="logs" aria-selected="false">Run logs</button>
-      <button role="tab" data-tab="recurring" aria-selected="false">Recurring jobs</button>
-    </div>
-
-    <div data-panel="outputs">
-      <div class="toolbar">
-        <input type="text" id="outSearch" placeholder="Search outputs…">
-        <select id="outKind"><option value="">All types</option><option value="research">Research</option><option value="code">Code</option><option value="briefs">Briefs</option><option value="docs">Docs</option><option value="digests">Digests</option></select>
-      </div>
-      <table><thead><tr><th>Title</th><th class="nowrap">Type</th><th class="nowrap hide-sm">Updated</th></tr></thead><tbody id="outputs"></tbody></table>
-    </div>
-
-    <div data-panel="history" class="hidden">
-      <div class="toolbar">
-        <input type="text" id="histSearch" placeholder="Search history…">
-        <select id="histStatus"><option value="">All</option><option value="done">Done</option><option value="blocked">Blocked</option></select>
-      </div>
-      <table><thead><tr><th class="nowrap">When</th><th>Task</th><th class="nowrap">Status</th></tr></thead><tbody id="history"></tbody></table>
-    </div>
-
-    <div data-panel="logs" class="hidden"><ul class="list" id="logs"></ul></div>
-
-    <div data-panel="recurring" class="hidden">
-      <div class="card-b">
-        <p class="hint" style="margin-top:0">The <b>Morning brief</b> runs each job on this list every weekday. Put one job per line, starting with <code>- </code>.</p>
-        <textarea id="recurring" rows="10" spellcheck="false" style="font-family:ui-monospace,Consolas,monospace;font-size:13px"></textarea>
-        <div class="form-foot"><button class="btn primary" id="saveRecurring">Save</button><span class="hint" id="recurringState"></span></div>
+          <div class="feed" id="feed" aria-live="polite"></div>
+        </section>
       </div>
     </div>
-  </section>
+
+    <!-- Resources -->
+    <div id="resources" class="hidden">
+      <section class="card">
+        <div class="tabs" role="tablist" id="tabs">
+          <button role="tab" data-tab="outputs" aria-selected="true">Outputs</button>
+          <button role="tab" data-tab="history" aria-selected="false">History</button>
+          <button role="tab" data-tab="logs" aria-selected="false">Run logs</button>
+          <button role="tab" data-tab="recurring" aria-selected="false">Recurring jobs</button>
+          <button role="tab" data-tab="analytics" aria-selected="false">Analytics</button>
+        </div>
+
+        <div data-panel="outputs">
+          <div class="toolbar">
+            <input type="text" id="outSearch" placeholder="Search outputs…">
+            <select id="outKind"><option value="">All types</option><option value="research">Research</option><option value="code">Code</option><option value="briefs">Briefs</option><option value="docs">Docs</option><option value="digests">Digests</option></select>
+          </div>
+          <table><thead><tr><th>Title</th><th class="nowrap">Type</th><th class="nowrap hide-sm">Updated</th></tr></thead><tbody id="outputs"></tbody></table>
+        </div>
+
+        <div data-panel="history" class="hidden">
+          <div class="toolbar">
+            <input type="text" id="histSearch" placeholder="Search history…">
+            <select id="histStatus"><option value="">All</option><option value="done">Done</option><option value="blocked">Blocked</option><option value="dismissed">Dismissed</option></select>
+          </div>
+          <table><thead><tr><th class="nowrap">When</th><th>Task</th><th class="nowrap">Status</th></tr></thead><tbody id="history"></tbody></table>
+        </div>
+
+        <div data-panel="logs" class="hidden"><ul class="list" id="logs"></ul></div>
+
+        <div data-panel="recurring" class="hidden">
+          <div class="card-b">
+            <p class="hint" style="margin-top:0">The <b>Morning brief</b> runs each job on this list every weekday. Put one job per line, starting with <code>- </code>.</p>
+            <textarea id="recurring" rows="10" spellcheck="false" style="font-family:ui-monospace,Consolas,monospace;font-size:13px"></textarea>
+            <div class="form-foot"><button class="btn primary" id="saveRecurring">Save</button><span class="hint" id="recurringState"></span></div>
+          </div>
+        </div>
+
+        <div data-panel="analytics" class="hidden" id="analytics"></div>
+      </section>
+    </div>
+  </main>
 </div>
+
+<!-- Activity card: shown on Overview and on In progress -->
+<section class="card" aria-live="polite" id="actCard">
+  <div class="act-head">
+    <span class="pulse" id="pulse"></span>
+    <div style="min-width:0">
+      <div class="act-title" id="actTitle">Checking…</div>
+      <div class="hint" id="actSub"></div>
+    </div>
+    <span class="spacer"></span>
+    <div class="act-count" id="actCount"></div>
+  </div>
+  <div class="overall-wrap">
+    <div class="bar" id="overall" role="progressbar" aria-label="Today's queue progress"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div id="running"></div>
+</section>
 
 <div id="viewer">
   <div class="scrim" data-close></div>
@@ -352,6 +596,7 @@ pre.raw{white-space:pre-wrap;font-size:12.5px}
     <div class="drawer-b"><div class="md" id="vBody"></div></div>
   </aside>
 </div>
+<div id="tip" class="hidden"></div>
 <div class="toast" id="toast"></div>
 
 <script>
@@ -429,27 +674,11 @@ function render(){
   $("#sBlockedCard").classList.toggle("alert", st.blocked > 0);
   $("#updated").textContent = "Updated " + new Date(S.now).toLocaleTimeString([], {hour:"numeric", minute:"2-digit"});
 
-  // queue
-  const order = {high:0, normal:1, low:2};
-  const tasks = [...S.tasks].sort((a,b) => (a.state==="running"?-1:0) - (b.state==="running"?-1:0) || order[a.priority]-order[b.priority] || a.line-b.line);
-  $("#queueCount").textContent = tasks.length ? `${tasks.length} task${tasks.length>1?"s":""}` : "";
-  $("#queue").innerHTML = tasks.length ? tasks.map(t => `
-    <li class="item">
-      <div class="main">
-        <div class="meta">${typeTag(t.type)}
-          ${t.state==="running" ? '<span class="pill running">In progress</span>' : ""}
-          ${t.priority!=="normal" ? `<span class="pill ${t.priority}">${esc(t.priority)}</span>` : ""}
-        </div>
-        <div class="t">${esc(t.title)}</div>
-        ${t.details ? `<div class="d">${esc(t.details)}</div>` : ""}
-      </div>
-      <div class="acts">
-        ${t.state==="running"
-          ? `<button class="btn sm" data-act="reset" data-line="${t.line}" title="Put back in the queue if a run got stuck">Requeue</button>`
-          : `<select class="btn sm" data-act="priority" data-line="${t.line}" aria-label="Priority">${["high","normal","low"].map(p=>`<option ${p===t.priority?"selected":""}>${p}</option>`).join("")}</select>
-             <button class="btn sm ghost" data-act="delete" data-line="${t.line}" title="Remove from queue" aria-label="Remove">✕</button>`}
-      </div>
-    </li>`).join("") : `<li class="empty">Queue is empty. Add a task above.</li>`;
+  // sidebar badges
+  $("#bQueued").textContent = st.queued || "";
+  $("#bDone").textContent = st.doneToday || "";
+  $("#bBlocked").textContent = st.blocked || "";
+  $("#bBlocked").classList.toggle("alert", st.blocked > 0);
 
   // schedules
   $("#schedules").innerHTML = S.schedules.map(s => {
@@ -489,6 +718,8 @@ function render(){
 
   const repos = new Set(S.tasks.concat(S.done).map(t => (/(?:repo:\s*)([^;—\n]+)/.exec(t.details || t.title || "") || [])[1]).filter(Boolean).map(s=>s.trim()));
   $("#repoList").innerHTML = [...repos].map(r => `<option value="${esc(r)}">`).join("");
+  renderPage();
+  if (route === "resources") renderAnalytics();
 }
 
 const STALE_MIN = 15;
@@ -527,6 +758,10 @@ function renderActivity(){
     $("#actSub").textContent = last + (next ? `Next run ${fmtWhen(next).replace(/^Today /, "today ")} (in ${dur(next - Date.now())}).` : "");
   }
   $("#sRunning").textContent = running;
+  $("#bRunning").textContent = running || "";
+  $("#sidePulse").className = "pulse " + state;
+  $("#sideStatus").textContent = state === "working" ? `Working · ${run.name}` : state === "stale" ? "Possibly stuck" : "Idle";
+  $("#sideNext").textContent = state === "idle" && next ? `Next run ${fmtWhen(next).replace(/^Today /, "today ")}` : "";
   $("#actCount").innerHTML = total ? `<b>${done}</b> of <b>${total}</b> done today` : "";
 
   // Overall bar
@@ -632,7 +867,7 @@ function renderHistory(){
       : /^(outputs|logs)\//.test(out) ? `<button class="linky" data-view="${esc(out.split(/\s/)[0])}">${esc(out)}</button>` : esc(out);
     return `<tr><td class="nowrap hint">${esc(d.date)}<br>${esc(d.time)}</td>
       <td><div class="meta">${typeTag(d.type)}</div><div style="overflow-wrap:anywhere">${esc(d.title)}</div>${out?`<div class="hint" style="overflow-wrap:anywhere">${link}</div>`:""}</td>
-      <td class="nowrap"><span class="pill ${d.status==="blocked"?"blocked":"ok"}">${d.status==="blocked"?"Blocked":"Done"}</span></td></tr>`;
+      <td class="nowrap"><span class="pill ${{blocked:"blocked", done:"ok"}[d.status] || ""}">${{blocked:"Blocked", done:"Done", dismissed:"Dismissed"}[d.status]}</span></td></tr>`;
   }).join("") : `<tr><td colspan="3" class="empty">No history ${q||f ? "matches" : "yet"}.</td></tr>`;
 }
 
@@ -666,6 +901,235 @@ async function view(path){
 }
 function closeViewer(){ document.body.classList.remove("open"); viewing = null; }
 
+/* ---------- section pages ---------- */
+const PAGES = {
+  "":        {title:"Overview", desc:"Your AI workflow at a glance."},
+  queued:    {title:"Queued", desc:"Waiting for the next queue run. High priority goes first, then top to bottom, up to 3 per run."},
+  running:   {title:"In progress", desc:"What's being worked on right now, step by step."},
+  done:      {title:"Done", desc:"Finished tasks and their results."},
+  blocked:   {title:"Blocked", desc:"Tasks a run couldn't finish, and why. Retry with more information, or dismiss."},
+  resources: {title:"Resources", desc:"Outputs, history, run logs, recurring jobs and analytics."},
+};
+const TASK_PAGES = ["queued", "running", "done", "blocked"];
+const ORDER = {high:0, normal:1, low:2};
+let route = null, editing = null, retrying = null, doneRange = "today", showDismissed = false;
+
+function go(){
+  const r = (location.hash.match(/^#\/(\w+)/) || [])[1] || "";
+  const next = r in PAGES ? r : "";
+  const changed = next !== route;
+  route = next; editing = null; retrying = null;
+  document.body.classList.remove("nav-open");
+  $("#home").classList.toggle("hidden", route !== "");
+  $("#page").classList.toggle("hidden", !TASK_PAGES.includes(route));
+  $("#resources").classList.toggle("hidden", route !== "resources");
+  document.querySelectorAll("#pageBody [data-only]").forEach(el => el.classList.toggle("hidden", el.dataset.only !== route));
+  // The activity card lives on the Overview and on In progress.
+  (route === "running" ? $("#actPage") : $("#actHome")).append($("#actCard"));
+  document.querySelectorAll(".nav a[data-route]").forEach(a => a.classList.toggle("active", a.dataset.route === route));
+  $("#resBtn").classList.toggle("active", route === "resources");
+  $("#pageTitle").textContent = PAGES[route].title; $("#pageDesc").textContent = PAGES[route].desc;
+  document.title = route ? `${PAGES[route].title} · AI Workflow` : "AI Workflow";
+  if (S){ renderPage(); if (route === "resources") renderAnalytics(); }
+  if (changed) window.scrollTo({top:0});
+}
+
+/* ---------- analytics (Resources → Analytics) ---------- */
+function renderAnalytics(){
+  const box = $("#analytics"); if (!box || !S) return;
+  const done = S.done.filter(d => d.status === "done");
+  const blocked = S.done.filter(d => d.status !== "done");
+  const attempted = done.length + blocked.length;
+  const rate = attempted ? Math.round(done.length / attempted * 100) + "%" : "–";
+  const files = S.outputs.filter(o => o.kind !== "other").length;
+
+  // Completed per day, last 14 days (one series → one hue, no legend)
+  const days = [...Array(14)].map((_, i) => { const d = new Date(); d.setDate(d.getDate() - 13 + i); return d; });
+  const counts = days.map(d => done.filter(x => x.date === d.toLocaleDateString("en-CA")).length);
+  const max = Math.max(1, ...counts), top = Math.max(2, Math.ceil(max / 2) * 2);
+  const vbars = days.map((d, i) => {
+    const label = d.toLocaleDateString([], {weekday:"short", month:"short", day:"numeric"});
+    return `<div class="b" data-tip="${esc(label)}: ${counts[i]} task${counts[i]===1?"":"s"}"><span style="height:${counts[i] / top * 100}%"></span></div>`;
+  }).join("");
+  const xl = days.map((d, i) => `<span>${i % 3 === 1 || i === 13 ? d.toLocaleDateString([], {month:"numeric", day:"numeric"}) : ""}</span>`).join("");
+
+  // Completed by task type
+  const types = Object.keys(TYPES).map(k => ({k, label: TYPES[k].label, n: done.filter(x => x.type === k).length})).sort((a,b) => b.n - a.n);
+  const tmax = Math.max(1, ...types.map(t => t.n));
+  const hbars = types.map(t => `<span class="lab">${esc(t.label)}</span>
+    <div class="track" data-tip="${esc(t.label)}: ${t.n} completed"><span style="width:${t.n / tmax * 100}%"></span></div>
+    <span class="val">${t.n}</span>`).join("");
+
+  box.innerHTML = `
+    <div class="kpis">
+      <div class="kpi"><div class="n">${done.length}</div><div class="l">Tasks completed</div></div>
+      <div class="kpi"><div class="n">${rate}</div><div class="l">Finished without blocking</div></div>
+      <div class="kpi"><div class="n">${files}</div><div class="l">Reports &amp; files produced</div></div>
+      <div class="kpi"><div class="n">${S.logs.length}</div><div class="l">Days with runs</div></div>
+    </div>
+    <div class="charts">
+      <div class="chart" role="img" aria-label="Tasks completed per day over the last 14 days: ${counts.join(", ")}">
+        <h3>Tasks completed per day</h3><div class="sub">Last 14 days · hover a bar for the count</div>
+        <div class="vbars"><div class="gl" style="bottom:100%"><i>${top}</i></div><div class="gl" style="bottom:50%"><i>${top/2}</i></div>${vbars}</div>
+        <div class="xlab">${xl}</div>
+      </div>
+      <div class="chart" role="img" aria-label="Completed tasks by type: ${types.map(t => `${t.label} ${t.n}`).join(", ")}">
+        <h3>Completed by task type</h3><div class="sub">All time</div>
+        <div class="hbars">${hbars}</div>
+      </div>
+    </div>
+    <div class="help">The full list behind these numbers is in the <b>History</b> tab.</div>`;
+}
+window.addEventListener("hashchange", go);
+
+const today = () => new Date().toLocaleDateString("en-CA");      // YYYY-MM-DD in local time
+const outLink = o => /^https?:\/\//.test(o) ? `<a href="${esc(o)}" target="_blank" rel="noopener">${esc(o)}</a>`
+  : /^(outputs|logs)\//.test(o) ? `<button class="linky" data-view="${esc(o.split(/\s/)[0])}">${esc(o)}</button>` : esc(o);
+
+function renderPage(){
+  if (!TASK_PAGES.includes(route) || editing !== null || retrying !== null) return;   // don't clobber an open form
+  const card = $("#pageCard");
+  card.classList.remove("hidden");
+
+  if (route === "queued"){
+    const q = S.tasks.filter(t => t.state === "queued").sort((a,b) => ORDER[a.priority]-ORDER[b.priority] || a.line-b.line);
+    card.innerHTML = `<div class="card-h"><h2>Queue</h2><span class="count">${q.length ? `${q.length} task${q.length>1?"s":""}, in run order` : ""}</span></div>
+      <ul class="list">${q.length ? q.map((t,i) => {
+        const up = i > 0 && q[i-1].priority === t.priority, down = i < q.length-1 && q[i+1].priority === t.priority;
+        return `<li class="item" data-line="${t.line}">
+          <span class="pos">${i+1}</span>
+          <div class="main">
+            <div class="meta">${typeTag(t.type)}${t.priority!=="normal" ? `<span class="pill ${t.priority}">${esc(t.priority)}</span>` : ""}</div>
+            <div class="t">${esc(t.title)}</div>${t.details ? `<div class="d">${esc(t.details)}</div>` : ""}
+          </div>
+          <div class="acts always">
+            <button class="btn sm ghost" data-q="up" ${up?"":"disabled"} title="Move up" aria-label="Move up">↑</button>
+            <button class="btn sm ghost" data-q="down" ${down?"":"disabled"} title="Move down" aria-label="Move down">↓</button>
+            <select class="btn sm" data-q="priority" aria-label="Priority">${["high","normal","low"].map(p=>`<option ${p===t.priority?"selected":""}>${p}</option>`).join("")}</select>
+            <button class="btn sm" data-q="edit">Edit</button>
+            <button class="btn sm ghost" data-q="delete" title="Remove" aria-label="Remove">✕</button>
+          </div></li>`;
+      }).join("") : `<li class="empty">Nothing queued. Add a task above and the next queue run picks it up.</li>`}</ul>
+      <div class="help">↑ ↓ reorder tasks within the same priority. To jump ahead of other tasks, change the priority.</div>`;
+  }
+
+  else if (route === "running"){
+    const r = S.tasks.filter(t => t.state === "running");
+    const {state, quiet} = runState();
+    if (!r.length && state !== "stale"){ card.classList.add("hidden"); card.innerHTML = ""; return; }
+    card.innerHTML = `<div class="card-h"><h2>Marked in progress</h2><span class="count">${r.length || ""}</span></div>
+      ${state === "stale" ? `<div class="reason" style="margin:12px 16px"><b>Possibly stuck:</b> no activity for ${dur(quiet*60000)}. A run that's waiting on a permission prompt blocks later runs of the same schedule. Open the run in the Claude sidebar to check it.</div>` : ""}
+      <ul class="list">${r.map(t => `<li class="item" data-line="${t.line}">
+        <div class="main"><div class="meta">${typeTag(t.type)}<span class="pill running">In progress</span></div><div class="t">${esc(t.title)}</div></div>
+        <div class="acts always"><button class="btn sm" data-q="reset" title="Put it back in the queue">Requeue</button></div></li>`).join("")}</ul>
+      ${r.length ? `<div class="help">Only requeue a task if its run is no longer working on it; otherwise it may be done twice.</div>` : ""}`;
+  }
+
+  else if (route === "done"){
+    const since = {today: today(), week: new Date(Date.now()-6*864e5).toLocaleDateString("en-CA"), all: ""}[doneRange];
+    const d = S.done.filter(x => x.status === "done" && (x.date || "") >= since);
+    card.innerHTML = `<div class="filters">${[["today","Today"],["week","Last 7 days"],["all","All"]].map(([k,l]) =>
+        `<button class="chip" data-range="${k}" aria-pressed="${k===doneRange}">${l}</button>`).join("")}
+        <span class="spacer"></span><span class="count hint">${d.length} task${d.length===1?"":"s"}</span></div>
+      <ul class="list">${d.length ? d.map((x,i) => `<li class="item" data-i="${S.done.indexOf(x)}">
+        <div class="main"><div class="meta">${typeTag(x.type)}<span class="pill ok">Done</span><span class="hint">${esc(x.date)} ${esc(x.time)}</span></div>
+          <div class="t">${esc(x.title)}</div>${x.output ? `<div class="d">${outLink(x.output)}</div>` : ""}</div>
+        <div class="acts always">
+          ${/^outputs\//.test(x.output) ? `<button class="btn sm" data-view="${esc(x.output.split(/\s/)[0])}">Open</button>` : ""}
+          <button class="btn sm ghost" data-q="again" title="Add the same task to the queue again">Run again</button>
+        </div></li>`).join("") : `<li class="empty">Nothing finished ${doneRange === "today" ? "today yet" : "in this period"}.</li>`}</ul>`;
+  }
+
+  else if (route === "blocked"){
+    const b = S.done.filter(x => x.status === "blocked" || (showDismissed && x.status === "dismissed"));
+    card.innerHTML = `<div class="filters"><label class="follow"><input type="checkbox" id="showDismissed" ${showDismissed?"checked":""}> Show dismissed</label>
+        <span class="spacer"></span><span class="count hint">${S.stats.blocked} open</span></div>
+      <ul class="list">${b.length ? b.map(x => `<li class="item" data-i="${S.done.indexOf(x)}">
+        <div class="main"><div class="meta">${typeTag(x.type)}<span class="pill ${x.status==="dismissed"?"":"blocked"}">${x.status==="dismissed"?"Dismissed":"Blocked"}</span><span class="hint">${esc(x.date)} ${esc(x.time)}</span></div>
+          <div class="t">${esc(x.title)}</div>
+          ${x.reason ? `<div class="reason"><b>Why:</b> ${esc(x.reason)}</div>` : ""}</div>
+        ${x.status === "blocked" ? `<div class="acts always">
+          <button class="btn sm primary" data-q="retry">Retry…</button>
+          <button class="btn sm ghost" data-q="dismiss" title="Clear it from the blocked list">Dismiss</button></div>` : ""}
+        </li>`).join("") : `<li class="empty">Nothing blocked 🎉</li>`}</ul>`;
+  }
+}
+
+function itemOf(el){ const li = el.closest(".item"); return li && {li, task: S.tasks.find(t => t.line == li.dataset.line), done: S.done[li.dataset.i]}; }
+
+$("#pageCard").addEventListener("click", async e => {
+  const chip = e.target.closest("[data-range]");
+  if (chip){ doneRange = chip.dataset.range; renderPage(); return; }
+  const b = e.target.closest("button[data-q]"); if (!b) return;
+  const {li, task, done} = itemOf(b), act = b.dataset.q;
+  try{
+    if (act === "up" || act === "down"){
+      const q = S.tasks.filter(t => t.state === "queued").sort((a,c) => ORDER[a.priority]-ORDER[c.priority] || a.line-c.line);
+      const other = q[q.indexOf(task) + (act === "up" ? -1 : 1)];
+      await api("/api/tasks/move", {line:task.line, raw:task.raw, with:other.line, withRaw:other.raw});
+    }
+    else if (act === "delete"){
+      if (!confirm("Remove this task from the queue?\n\n" + task.title)) return;
+      await api("/api/tasks/delete", {line:task.line, raw:task.raw}); toast("Removed");
+    }
+    else if (act === "reset"){ await api("/api/tasks/reset", {line:task.line, raw:task.raw}); toast("Back in the queue"); }
+    else if (act === "edit"){
+      editing = task.line;
+      const [summary, ...rest] = (task.details || "").split("\n");
+      li.innerHTML = `<form class="edit-form" data-edit>
+        <label class="f" style="margin:0">Task</label><input type="text" name="title" value="${esc(task.title)}" maxlength="300" required>
+        <label class="f" style="margin:0">Short details (on the same line)</label><input type="text" name="summary" value="${esc(summary)}">
+        <label class="f" style="margin:0">More details (one per line)</label><textarea name="details" rows="3">${esc(rest.join("\n"))}</textarea>
+        <div class="row2"><button type="button" class="btn sm" data-cancel>Cancel</button><button class="btn sm primary">Save</button></div></form>`;
+      li.querySelector("input").focus();
+      return;
+    }
+    else if (act === "again"){
+      if (!confirm("Add this task to the queue again?\n\n" + done.title)) return;
+      await api("/api/tasks", {type: TYPES[done.type] ? done.type : "research", priority:"normal", title:done.title}); toast("Added to queue");
+    }
+    else if (act === "dismiss"){ await api("/api/done/dismiss", {raw:done.raw}); toast("Dismissed"); }
+    else if (act === "retry"){
+      retrying = done.raw;
+      li.insertAdjacentHTML("beforeend", `<form class="edit-form" data-retry style="margin-top:10px">
+        <label class="f" style="margin:0">What should the next attempt know? Answer the reason above, e.g. add a location, repo or file.</label>
+        <textarea name="info" rows="3" required></textarea>
+        <div class="row2"><select name="priority" class="btn sm"><option value="high">High priority</option><option value="normal" selected>Normal priority</option><option value="low">Low priority</option></select>
+        <button type="button" class="btn sm" data-cancel>Cancel</button><button class="btn sm primary">Add back to queue</button></div></form>`);
+      li.style.flexWrap = "wrap"; li.querySelector("textarea").focus();
+      return;
+    }
+  }catch(err){ toast(err.message, true); }
+  load();
+});
+
+$("#pageCard").addEventListener("change", async e => {
+  if (e.target.id === "showDismissed"){ showDismissed = e.target.checked; renderPage(); return; }
+  const s = e.target.closest("select[data-q=priority]"); if (!s) return;
+  const {task} = itemOf(s);
+  try{ await api("/api/tasks/priority", {line:task.line, raw:task.raw, priority:s.value}); toast("Priority: " + s.value); }
+  catch(err){ toast(err.message, true); }
+  load();
+});
+
+$("#pageCard").addEventListener("submit", async e => {
+  e.preventDefault();
+  const f = e.target, {task, done} = itemOf(f);
+  try{
+    if (f.matches("[data-edit]")){
+      await api("/api/tasks/edit", {line:task.line, raw:task.raw, title:f.title.value, summary:f.summary.value, details:f.details.value});
+      toast("Saved");
+    } else {
+      const details = (done.reason ? `Previous attempt was blocked: ${done.reason}\n` : "") + `Owner's answer: ${f.info.value}`;
+      await api("/api/tasks", {type: TYPES[done.type] ? done.type : "research", priority:f.priority.value, title:done.title, details});
+      await api("/api/done/dismiss", {raw:done.raw});
+      toast("Back in the queue");
+    }
+    editing = retrying = null; load();
+  }catch(err){ toast(err.message, true); }
+});
+$("#pageCard").addEventListener("click", e => { if (e.target.closest("[data-cancel]")){ editing = retrying = null; renderPage(); } });
+
 /* ---------- data ---------- */
 async function load(){
   try{
@@ -693,20 +1157,17 @@ $("#taskForm").addEventListener("submit", async e => {
   $("#addBtn").disabled = false;
 });
 
-$("#queue").addEventListener("click", async e => {
-  const b = e.target.closest("button[data-act]"); if (!b) return;
-  const t = S.tasks.find(x => x.line == b.dataset.line);
-  if (b.dataset.act === "delete" && !confirm("Remove this task from the queue?\n\n" + t.title)) return;
-  try{ await api("/api/tasks/" + b.dataset.act, {line:t.line, raw:t.raw}); toast(b.dataset.act==="delete" ? "Removed" : "Back in queue"); }
-  catch(err){ toast(err.message, true); }
-  load();
-});
-$("#queue").addEventListener("change", async e => {
-  const s = e.target.closest("select[data-act=priority]"); if (!s) return;
-  const t = S.tasks.find(x => x.line == s.dataset.line);
-  try{ await api("/api/tasks/priority", {line:t.line, raw:t.raw, priority:s.value}); toast("Priority: " + s.value); }
-  catch(err){ toast(err.message, true); }
-  load();
+$("#menuBtn").addEventListener("click", () => document.body.classList.toggle("nav-open"));
+$("#scrimNav").addEventListener("click", () => document.body.classList.remove("nav-open"));
+$("#newTaskBtn").addEventListener("click", () => setTimeout(() => $("#title").focus(), 50));
+
+// Hover tooltips for chart marks
+document.addEventListener("mouseover", e => {
+  const m = e.target.closest("[data-tip]"), tip = $("#tip");
+  if (!m){ tip.classList.add("hidden"); return; }
+  const r = m.getBoundingClientRect();
+  tip.textContent = m.dataset.tip; tip.classList.remove("hidden");
+  tip.style.left = (r.left + r.width/2) + "px"; tip.style.top = r.top + "px";
 });
 
 document.addEventListener("click", e => {
@@ -739,6 +1200,7 @@ $("#refresh").addEventListener("click", load);
 
 try{ const t = localStorage.getItem("aiwf-tab"); if (t) document.querySelector(`#tabs [data-tab="${t}"]`)?.click(); }catch{}
 renderTypeSeg();
+go();
 load();
 // Poll every 3s while a run is active, otherwise every 20s.
 loadFeed();

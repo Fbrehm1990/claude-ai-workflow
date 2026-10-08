@@ -32,6 +32,19 @@ Nobody is watching while it runs, so finish work end-to-end and leave a clear re
 5. Budget: at most about 45 minutes of effort per task. Deliver a solid partial result rather than nothing.
 6. Cite sources (URLs) for every factual claim in research and briefs.
 
+## Commands: avoid anything that needs approval (nobody is there to click "Allow")
+A run that hits a permission prompt freezes until someone approves it, and that blocks every later run of
+the same schedule. So:
+- **Web:** use only WebSearch and WebFetch. Never use `curl`, `wget`, `Invoke-WebRequest` or scripts
+  that download things.
+- **Files:** use the Read, Write, Edit, Glob and Grep tools, not shell commands, to read, list or search files.
+- **Shell:** run one simple command per call. Don't chain with `;`, `&&` or pipes. The pre-approved commands
+  are `git`, `gh`, `python`, `pip`, `npm`, `npx` and `node`. For the date and time, run
+  `python -c "import datetime; print(f'{datetime.datetime.now():%Y-%m-%d %H:%M}')"`, or take it from the tool
+  results you already have.
+- If the only way forward needs a different command, skip that part, note it in the deliverable and the
+  log, and continue.
+
 ## Progress reporting (every run; the dashboard's live bar depends on it)
 Run these commands from this folder. They are quick, so call them at every phase change:
 - At run start: `python dashboard/progress.py start --run "<Morning brief | Queue worker | Evening digest | Manual run>"`
